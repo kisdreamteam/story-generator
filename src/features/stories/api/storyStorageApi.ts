@@ -15,14 +15,29 @@ import {
   type SafeSaveStoryResult,
   type ValidateStoryForSaveOptions,
 } from '@/features/stories/utils/storyValidation'
-import { buildDuplicatedStoryPlanProject, buildDuplicatedStoryProject } from '../utils/duplicateStoryProject'
+import { hasGeneratedStoryContent } from '@/features/story-generator/lib/story-project'
+import {
+  buildDuplicatedStoryPlanProject,
+  buildDuplicatedStoryProject,
+  buildStoryProjectCopyFromEdits,
+} from '../utils/duplicateStoryProject'
+import { withStoryLifecycleStatus } from '../utils/storyLifecycleStatus'
+import {
+  assertStorySaveNotStale,
+  type StorySaveBaseline,
+} from '../utils/storySaveConflict'
 import {
   appendStoryHistorySnapshotBeforeSave,
   deleteStoryHistory,
 } from '@/features/story-history'
+import { removeStoryClassroomAssignments } from '@/features/classrooms/api/storyClassroomAssignmentsApi'
 
 export type { LoadDraftWithGeneratedStoryResult } from '@/features/story-generator/lib/storage/StoryStorageAdapter'
 export type { ValidateStoryForSaveOptions } from '@/features/stories/utils/storyValidation'
+export type { StorySaveBaseline } from '@/features/stories/utils/storySaveConflict'
+export { StorySaveConflictError, isStorySaveConflictError } from '@/features/stories/utils/storySaveConflict'
+
+export interface PersistStoryEditsOptions extends ValidateStoryForSaveOptions, StorySaveBaseline {}
 
 export type StoryDetailData =
   | { kind: 'generated'; draft: StoryProject; generatedStory: GeneratedStory }
@@ -58,16 +73,46 @@ export async function persistStoryEdits(id: string, generatedStory: GeneratedSto
 export async function persistValidatedStoryEdits(
   id: string,
   generatedStory: GeneratedStory,
-  options?: ValidateStoryForSaveOptions,
+  options?: PersistStoryEditsOptions,
 ) {
   const validation = validateStoryForSave(generatedStory, options)
   if (!validation.isValid) {
     throw new StorySaveValidationFailure(validation)
   }
 
+  const current = await getStoryDraft(id)
+  if (!current) {
+    throw new Error(`Story not found: ${id}`)
+  }
+
+  assertStorySaveNotStale(current, {
+    expectedUpdatedAt: options?.expectedUpdatedAt,
+    expectedVersion: options?.expectedVersion,
+  })
+
   await appendStoryHistorySnapshotBeforeSave(id)
 
   return persistStoryEdits(id, generatedStory)
+}
+
+/** Validate then persist edited content as a new story — the source story is never modified. */
+export async function persistStoryEditsAsCopy(
+  sourceId: string,
+  generatedStory: GeneratedStory,
+  options?: ValidateStoryForSaveOptions,
+): Promise<StoryProject> {
+  const validation = validateStoryForSave(generatedStory, options)
+  if (!validation.isValid) {
+    throw new StorySaveValidationFailure(validation)
+  }
+
+  const withGenerated = await loadDraftWithGeneratedStory(sourceId)
+  if (!withGenerated) {
+    throw new Error('Cannot save a copy — generate the story first.')
+  }
+
+  const duplicated = buildStoryProjectCopyFromEdits(withGenerated.draft, generatedStory)
+  return saveStoryDraft(duplicated)
 }
 
 function toSaveFailedResult(message: string): Extract<SafeSaveStoryResult, { ok: false }> {
@@ -135,6 +180,28 @@ export async function duplicateStory(sourceId: string): Promise<StoryProject> {
   return saveStoryDraft(duplicated)
 }
 
+/** Mark a generated story as completed — preserves content and timestamps. */
+export async function markStoryCompleted(id: string): Promise<StoryProject> {
+  const draft = await getStoryDraft(id)
+  if (!draft) {
+    throw new Error(`Story not found: ${id}`)
+  }
+
+  if (!hasGeneratedStoryContent(draft)) {
+    throw new Error('Only generated stories can be marked complete.')
+  }
+
+  const updated = withStoryLifecycleStatus(
+    {
+      ...draft,
+      updatedAt: new Date().toISOString(),
+    },
+    'completed',
+  )
+
+  return saveStoryDraft(updated)
+}
+
 /** Delete a story via the active storage adapter (local or cloud). */
 export async function deleteStory(id: string): Promise<void> {
   if (!id) {
@@ -144,4 +211,5 @@ export async function deleteStory(id: string): Promise<void> {
   await deleteStoryDraft(id)
   await deleteStoryHistory(id)
   deleteStoryImageGenerationRecord(id)
+  await removeStoryClassroomAssignments(id)
 }

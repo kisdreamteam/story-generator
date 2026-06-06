@@ -1,12 +1,13 @@
 export interface DashboardNavItem {
   to: string
-  label: string
+  labelKey: string
   end?: boolean
 }
 
 export const dashboardNavItems: DashboardNavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', end: true },
-  { to: '/dashboard/create', label: 'Create Story' },
-  { to: '/dashboard/stories', label: 'Stories' },
-  { to: '/dashboard/settings', label: 'Settings' },
+  { to: '/dashboard', labelKey: 'dashboard', end: true },
+  { to: '/dashboard/create', labelKey: 'createStory' },
+  { to: '/dashboard/stories', labelKey: 'stories' },
+  { to: '/dashboard/classrooms', labelKey: 'classrooms' },
+  { to: '/dashboard/settings', labelKey: 'settings' },
 ]

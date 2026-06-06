@@ -16,6 +16,21 @@ export const storyDetailBoundaryProps = {
     'Something broke while opening this story. You can try again or go back to Your stories.',
 } as const
 
+/** Shared error-boundary copy for classroom detail routes. */
+export const classroomDetailBoundaryProps = {
+  featureName: 'classroom-detail',
+  title: 'Could not load this classroom',
+  description:
+    'Something broke while opening this classroom. You can try again or go back to Your classrooms.',
+} as const
+
+/** Shared error-boundary copy for the public student story route. */
+export const studentStoryBoundaryProps = {
+  featureName: 'student-story',
+  title: 'Could not open this story',
+  description: 'Something went wrong while loading the story. Ask your teacher to share the link again.',
+} as const
+
 /**
  * Route-level code splitting via react-router `lazy`.
  * Heavy pages (create flow, library, detail, legacy project wizard) load on demand
@@ -68,9 +83,70 @@ export async function loadStoryEditRoute() {
   }
 }
 
+export async function loadStoryReaderRoute() {
+  const { StoryReaderPage } = await import('@/features/story-reader/pages/StoryReaderPage')
+
+  return {
+    Component: function StoryReaderRoute() {
+      return (
+        <FeatureRouteBoundary {...storyDetailBoundaryProps}>
+          <StoryReaderPage />
+        </FeatureRouteBoundary>
+      )
+    },
+  }
+}
+
+export async function loadStoryRoleplayRoute() {
+  const { StoryRoleplayPage } = await import('@/features/story-roleplay/pages/StoryRoleplayPage')
+
+  return {
+    Component: function StoryRoleplayRoute() {
+      return (
+        <FeatureRouteBoundary {...storyDetailBoundaryProps}>
+          <StoryRoleplayPage />
+        </FeatureRouteBoundary>
+      )
+    },
+  }
+}
+
+export async function loadStoryPrintRoute() {
+  const { StoryPrintPage } = await import('@/features/story-export/pages/StoryPrintPage')
+
+  return {
+    Component: function StoryPrintRoute() {
+      return (
+        <FeatureRouteBoundary {...storyDetailBoundaryProps}>
+          <StoryPrintPage />
+        </FeatureRouteBoundary>
+      )
+    },
+  }
+}
+
 export async function loadSettingsRoute() {
   const { SettingsPage } = await import('./pages/SettingsPage')
   return { Component: SettingsPage }
+}
+
+export async function loadClassroomsRoute() {
+  const { ClassroomsPage } = await import('@/features/classrooms/pages/ClassroomsPage')
+  return { Component: ClassroomsPage }
+}
+
+export async function loadClassroomDetailRoute() {
+  const { ClassroomDetailPage } = await import('@/features/classrooms/pages/ClassroomDetailPage')
+
+  return {
+    Component: function ClassroomDetailRoute() {
+      return (
+        <FeatureRouteBoundary {...classroomDetailBoundaryProps}>
+          <ClassroomDetailPage />
+        </FeatureRouteBoundary>
+      )
+    },
+  }
 }
 
 export async function loadCreateProjectRoute() {
@@ -102,6 +178,30 @@ export async function loadStoryOutputRoute() {
           <StoryOutputPage />
         </FeatureRouteBoundary>
       )
+    },
+  }
+}
+
+export async function loadStudentStoryRoute() {
+  const { StudentStoryPage } = await import('@/features/student-story/pages/StudentStoryPage')
+
+  return {
+    Component: function StudentStoryRoute() {
+      return (
+        <FeatureRouteBoundary {...studentStoryBoundaryProps}>
+          <StudentStoryPage />
+        </FeatureRouteBoundary>
+      )
+    },
+  }
+}
+
+export async function loadQaChecklistRoute() {
+  const { QaChecklistPage } = await import('@/features/dev-qa/pages/QaChecklistPage')
+
+  return {
+    Component: function QaChecklistRoute() {
+      return <QaChecklistPage />
     },
   }
 }

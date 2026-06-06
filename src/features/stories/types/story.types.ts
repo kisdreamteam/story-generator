@@ -1,7 +1,9 @@
 import type { StoryGenerationMetadata } from '@/shared/ai/metadata'
+import type { StoryPageImageFields } from '@/features/story-images/types'
+import type { StoryLifecycleStatus } from './storyLifecycle.types'
 
 /** A single page of story text for classroom reading. */
-export interface StoryPage {
+export interface StoryPage extends StoryPageImageFields {
   pageNumber: number
   text: string
   wordCount: number
@@ -91,4 +93,6 @@ export interface StoryProject {
   generatedStory?: GeneratedStory
   /** How the story was generated — optional for legacy projects. */
   generationMetadata?: StoryGenerationMetadata
+  /** Teacher lifecycle status — optional for legacy projects; derived when missing. */
+  lifecycleStatus?: StoryLifecycleStatus
 }

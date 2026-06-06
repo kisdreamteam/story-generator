@@ -10,11 +10,29 @@ import {
   getStorySaveValidationMessages,
   isStorySaveValidationFailure,
 } from '@/features/stories/utils/storyValidation'
+import { isStorySaveConflictError } from '@/features/stories/utils/storySaveConflict'
 import { storyFeedback } from '@/shared/feedback'
 import { useAsyncMutation } from '@/shared/lib/mutations'
 import { StoryEditForm, withRecalculatedWordCounts, type GeneratedStory } from '@/features/stories'
-import { saveStoryEditorChanges } from '@/features/story-editor/api/saveStoryEditorChanges'
-import { deleteStory, duplicateStory } from '../api/storyStorageApi'
+import { saveStoryEditorChanges, saveStoryEditorChangesAsCopy } from '@/features/story-editor/api/saveStoryEditorChanges'
+import {
+  ImagePromptReviewPanel,
+  StoryImageGenerationPanel,
+  haveStoryPageImagesChanged,
+  isStoryPageImageReady,
+  useImagePromptReview,
+  useStoryPageImageGeneration,
+} from '@/features/story-images'
+import { StoryPageImageStatuses } from '@/features/story-images/types'
+import {
+  AssignStoryToClassroomPanel,
+  StoryClassroomsSection,
+  useAssignStoryToClassroom,
+} from '@/features/classrooms'
+import { StoryExportActions } from '@/features/story-export'
+import { deleteStory, duplicateStory, markStoryCompleted } from '../api/storyStorageApi'
+import { AppEmptyState } from '@/shared/components'
+import { resolveStoryLifecycleStatus } from '../utils/storyLifecycleStatus'
 import { confirmDeleteStory } from '../lib/confirmDeleteStory'
 import { StoryActionsBar, type StoryActionConfig } from '../components/StoryActionsBar'
 import {
@@ -23,7 +41,6 @@ import {
   StoryFlashcards,
   StoryGeneratedContentSections,
   StoryHeader,
-  StoryImagePrompts,
   StoryMetadata,
   StoryPages,
 } from '../components/story-detail'
@@ -48,10 +65,14 @@ export function StoryDetailPage() {
   const sourceGeneratedStory = isGenerated && data ? data.generatedStory : null
 
   const [isEditing, setIsEditing] = useState(false)
+  const [isAssignPanelOpen, setIsAssignPanelOpen] = useState(false)
   const [optimisticDisplayStory, setOptimisticDisplayStory] = useState<GeneratedStory | null>(null)
   const [actionError, setActionError] = useState<StoryLoadErrorPresentation | null>(null)
   const mutation = useAsyncMutation()
   const isMutating = mutation.isPending
+  const storyProjectId = draft?.id ?? storyId ?? ''
+
+  const classroomAssignment = useAssignStoryToClassroom(isEditing ? undefined : storyProjectId)
 
   const {
     session,
@@ -90,8 +111,42 @@ export function StoryDetailPage() {
     navigate(`/dashboard/create?draftId=${encodeURIComponent(draft.id)}`)
   }
 
+  function handleReadStory() {
+    if (!storyId) return
+    navigate(`/dashboard/stories/${storyId}/read`)
+  }
+
+  function handleOpenRoleplay() {
+    if (!storyId) return
+    navigate(`/dashboard/stories/${encodeURIComponent(storyId)}/roleplay`)
+  }
+
+  function handleViewStory() {
+    if (isEditing) {
+      if (hasChanges && !confirmLeave()) {
+        return
+      }
+
+      restoreOriginal()
+      setActionError(null)
+      setIsEditing(false)
+    }
+
+    document.getElementById('story-detail-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function handleContinueEditing() {
+    if (isGenerated) {
+      handleEnterEditMode()
+      return
+    }
+
+    handleContinueInCreator()
+  }
+
   function handleEnterEditMode() {
     setActionError(null)
+    setIsAssignPanelOpen(false)
     setIsEditing(true)
   }
 
@@ -108,21 +163,63 @@ export function StoryDetailPage() {
   function handleSaveChanges() {
     if (!draft || !editedStory || isMutating || !hasChanges) return
 
-    void mutation.run(() => saveStoryEditorChanges(draft.id, editedStory).then(({ story }) => story), {
+    void mutation.run(
+      () =>
+        saveStoryEditorChanges(draft.id, editedStory, {
+          expectedUpdatedAt: draft.updatedAt,
+          expectedVersion: draft.version,
+        }).then(({ story }) => story),
+      {
+        optimistic: () => {
+          setActionError(null)
+          setOptimisticDisplayStory(withRecalculatedWordCounts(editedStory))
+          setIsEditing(false)
+        },
+        rollback: () => {
+          setOptimisticDisplayStory(null)
+          setIsEditing(true)
+          storyFeedback.optimisticRollback('Your edits could not be saved. Edit mode was restored.')
+        },
+        onSuccess: () => {
+          setOptimisticDisplayStory(null)
+          reload()
+          storyFeedback.storyUpdated()
+        },
+        onError: (error) => {
+          if (isStorySaveValidationFailure(error)) {
+            setActionError({
+              title: 'Fix these issues before saving',
+              description: getStorySaveValidationMessages(error.result).join(' '),
+            })
+            return
+          }
+
+          if (isStorySaveConflictError(error)) {
+            setActionError({
+              title: 'Story changed elsewhere',
+              description: error.message,
+            })
+            return
+          }
+
+          const presentation = classifyStoryLoadError(error)
+          setActionError(presentation)
+          storyFeedback.cloudSyncFailed(presentation.description)
+        },
+      },
+    )
+  }
+
+  function handleSaveAsCopy() {
+    if (!draft || !editedStory || isMutating || !hasChanges) return
+
+    void mutation.run(() => saveStoryEditorChangesAsCopy(draft.id, editedStory).then(({ project }) => project), {
       optimistic: () => {
         setActionError(null)
-        setOptimisticDisplayStory(withRecalculatedWordCounts(editedStory))
-        setIsEditing(false)
       },
-      rollback: () => {
-        setOptimisticDisplayStory(null)
-        setIsEditing(true)
-        storyFeedback.optimisticRollback('Your edits could not be saved. Edit mode was restored.')
-      },
-      onSuccess: () => {
-        setOptimisticDisplayStory(null)
-        reload()
-        storyFeedback.storyUpdated()
+      onSuccess: (project) => {
+        storyFeedback.storySavedAsCopy(project.title)
+        navigate(`/dashboard/stories/${encodeURIComponent(project.id)}`)
       },
       onError: (error) => {
         if (isStorySaveValidationFailure(error)) {
@@ -133,6 +230,25 @@ export function StoryDetailPage() {
           return
         }
 
+        const presentation = classifyStoryLoadError(error)
+        setActionError(presentation)
+        storyFeedback.cloudSyncFailed(presentation.description)
+      },
+    })
+  }
+
+  function handleMarkComplete() {
+    if (!draft || isMutating || !isGenerated) return
+
+    void mutation.run(() => markStoryCompleted(draft.id), {
+      optimistic: () => {
+        setActionError(null)
+      },
+      onSuccess: () => {
+        reload()
+        storyFeedback.storyCompleted(draft.title)
+      },
+      onError: (error) => {
         const presentation = classifyStoryLoadError(error)
         setActionError(presentation)
         storyFeedback.cloudSyncFailed(presentation.description)
@@ -160,6 +276,133 @@ export function StoryDetailPage() {
     })
   }
 
+  function handleSaveIllustrations() {
+    if (!draft || !viewStory || isMutating || !hasUnsavedImages) return
+
+    void mutation.run(
+      () =>
+        saveStoryEditorChanges(draft.id, viewStory, {
+          expectedUpdatedAt: draft.updatedAt,
+          expectedVersion: draft.version,
+        }).then(({ story }) => story),
+      {
+        optimistic: () => {
+          setActionError(null)
+          setOptimisticDisplayStory(viewStory)
+        },
+        rollback: () => {
+          setOptimisticDisplayStory(null)
+          storyFeedback.optimisticRollback('Your illustrations could not be saved.')
+        },
+        onSuccess: () => {
+          setOptimisticDisplayStory(null)
+          reload()
+          storyFeedback.storyUpdated('Your page illustrations were saved.')
+        },
+        onError: (error) => {
+          if (isStorySaveValidationFailure(error)) {
+            setActionError({
+              title: 'Fix these issues before saving',
+              description: getStorySaveValidationMessages(error.result).join(' '),
+            })
+            return
+          }
+
+          if (isStorySaveConflictError(error)) {
+            setActionError({
+              title: 'Story changed elsewhere',
+              description: error.message,
+            })
+            return
+          }
+
+          const savePresentation = classifyStoryLoadError(error)
+          setActionError(savePresentation)
+          storyFeedback.cloudSyncFailed(savePresentation.description)
+        },
+      },
+    )
+  }
+
+  async function handleGenerateMissingImages() {
+    const result = await pageImageGeneration.generateMissingImages()
+
+    if (result.generated.length > 0) {
+      storyFeedback.imagesGenerated(result.generated.length)
+    }
+
+    if (result.failed.length > 0) {
+      storyFeedback.imageGenerationFailed(
+        result.failed
+          .map((item) => `Page ${item.pageNumber}: ${item.errorMessage}`)
+          .join(' '),
+      )
+    }
+  }
+
+  async function handleRegeneratePageImage(pageNumber: number) {
+    const result = await pageImageGeneration.regeneratePageImage(pageNumber)
+
+    if (result.ok) {
+      storyFeedback.imagesGenerated(1)
+      return
+    }
+
+    if (result.errorMessage) {
+      storyFeedback.imageGenerationFailed(result.errorMessage)
+    }
+  }
+
+  function handleSaveImagePrompts() {
+    if (!draft || !viewStory || !imagePromptReview.isDirty || isMutating) return
+
+    const updatedStory = imagePromptReview.applyToStory(viewStory)
+
+    void mutation.run(
+      () =>
+        saveStoryEditorChanges(draft.id, updatedStory, {
+          expectedUpdatedAt: draft.updatedAt,
+          expectedVersion: draft.version,
+        }).then(({ story }) => story),
+      {
+        optimistic: () => {
+          setActionError(null)
+          setOptimisticDisplayStory(updatedStory)
+        },
+        rollback: () => {
+          setOptimisticDisplayStory(null)
+          storyFeedback.optimisticRollback('Your prompt edits could not be saved.')
+        },
+        onSuccess: () => {
+          setOptimisticDisplayStory(null)
+          reload()
+          storyFeedback.storyUpdated()
+        },
+        onError: (error) => {
+          if (isStorySaveValidationFailure(error)) {
+            setActionError({
+              title: 'Fix these issues before saving',
+              description: getStorySaveValidationMessages(error.result).join(' '),
+            })
+            return
+          }
+
+          if (isStorySaveConflictError(error)) {
+            setActionError({
+              title: 'Story changed elsewhere',
+              description: error.message,
+            })
+            return
+          }
+
+          const savePresentation = classifyStoryLoadError(error)
+          setActionError(savePresentation)
+          storyFeedback.cloudSyncFailed(savePresentation.description)
+        },
+      },
+    )
+  }
+
   function handleDuplicateStory() {
     if (!draft || isMutating) return
 
@@ -179,13 +422,46 @@ export function StoryDetailPage() {
     })
   }
 
+  function handleToggleAssignPanel() {
+    setIsAssignPanelOpen((current) => {
+      const next = !current
+      if (next) {
+        classroomAssignment.resetSelection()
+      }
+      return next
+    })
+  }
+
+  async function handleSaveClassroomAssignments() {
+    await classroomAssignment.saveAssignments()
+    storyFeedback.storyClassroomAssignmentsSaved(classroomAssignment.selectedClassroomIds.length)
+    setIsAssignPanelOpen(false)
+  }
+
+  const lifecycleStatus = draft ? resolveStoryLifecycleStatus(draft) : null
+  const statusLabel = draft ? getStoryProjectStatusLabel(draft) : ''
+  const canMarkComplete =
+    isGenerated && lifecycleStatus !== 'completed' && lifecycleStatus !== 'draft' && !isEditing
+
   const generatedActions: StoryActionConfig[] = [
+    {
+      key: 'complete',
+      hidden: !canMarkComplete,
+      onClick: handleMarkComplete,
+      loading: isMutating,
+      disabled: isMutating,
+    },
     {
       key: 'duplicate',
       hidden: isEditing,
       onClick: handleDuplicateStory,
       loading: isMutating,
       disabled: isMutating,
+    },
+    {
+      key: 'assignClassroom',
+      hidden: isEditing,
+      onClick: handleToggleAssignPanel,
     },
     {
       key: 'delete',
@@ -196,9 +472,7 @@ export function StoryDetailPage() {
     },
     {
       key: 'ai',
-      hidden: isEditing,
-      comingSoon: true,
-      disabled: true,
+      hidden: true,
     },
     {
       key: 'edit',
@@ -212,6 +486,13 @@ export function StoryDetailPage() {
       disabled: isMutating,
     },
     {
+      key: 'saveAsCopy',
+      hidden: !isEditing,
+      onClick: handleSaveAsCopy,
+      disabled: !hasChanges || isMutating,
+      loading: isMutating,
+    },
+    {
       key: 'save',
       hidden: !isEditing,
       onClick: handleSaveChanges,
@@ -221,6 +502,10 @@ export function StoryDetailPage() {
   ]
 
   const setupOnlyActions: StoryActionConfig[] = [
+    {
+      key: 'assignClassroom',
+      onClick: handleToggleAssignPanel,
+    },
     {
       key: 'duplicate',
       onClick: handleDuplicateStory,
@@ -238,12 +523,35 @@ export function StoryDetailPage() {
   const displayStory =
     optimisticDisplayStory ??
     (isEditing && editedStory ? editedStory : sourceGeneratedStory)
-  const statusLabel = draft ? getStoryProjectStatusLabel(draft) : ''
+
+  const pageImageGeneration = useStoryPageImageGeneration({
+    story: !isEditing && isGenerated ? displayStory : null,
+    storyId: draft?.id ?? storyId ?? '',
+  })
+
+  const viewStory =
+    !isEditing && pageImageGeneration.story ? pageImageGeneration.story : displayStory
+
+  const hasUnsavedImages =
+    !isEditing && displayStory && viewStory
+      ? haveStoryPageImagesChanged(viewStory, displayStory)
+      : false
+
+  const illustrationReadyCount =
+    viewStory?.storyPages.filter((page) =>
+      isStoryPageImageReady(page, viewStory.imagePrompts),
+    ).length ?? 0
+
+  const illustrationFailedCount =
+    viewStory?.storyPages.filter((page) => page.imageStatus === StoryPageImageStatuses.FAILED)
+      .length ?? 0
+
+  const imagePromptReview = useImagePromptReview(isEditing ? null : viewStory)
   const pageDescription = isGenerated
     ? isEditing
       ? 'Update story pages, flashcards, or illustration notes, then save your changes.'
-      : 'Your saved classroom story — read it here or open it in the creator to adjust your plan.'
-    : 'This is your saved story plan. Open the creator to generate your classroom story.'
+      : 'Your saved classroom story — read it aloud or edit pages anytime.'
+    : 'This is your saved story plan. Open the story creator to generate pages for your class.'
 
   return (
     <StoryDetailLoadGuard
@@ -259,8 +567,12 @@ export function StoryDetailPage() {
             actions={
               <StoryDetailNav
                 onBack={handleBackToStories}
-                onContinueInCreator={handleContinueInCreator}
-                continueLabel={isGenerated ? 'Open in creator' : 'Continue editing'}
+                onViewStory={isGenerated && isEditing ? handleViewStory : undefined}
+                onContinueEditing={handleContinueEditing}
+                onReadStory={isGenerated && !isEditing ? handleReadStory : undefined}
+                onRoleplay={isGenerated && !isEditing ? handleOpenRoleplay : undefined}
+                isSetupOnly={!isGenerated}
+                continueEditingActive={isEditing}
               />
             }
           />
@@ -277,9 +589,16 @@ export function StoryDetailPage() {
 
             {actionError && (
               <ErrorState title={actionError.title} description={actionError.description}>
-                <AppButton type="button" variant="secondary" onClick={() => setActionError(null)}>
-                  Dismiss
-                </AppButton>
+                <div className="flex flex-wrap gap-2">
+                  {actionError.title === 'Story changed elsewhere' ? (
+                    <AppButton type="button" variant="secondary" onClick={() => reload()}>
+                      Reload story
+                    </AppButton>
+                  ) : null}
+                  <AppButton type="button" variant="secondary" onClick={() => setActionError(null)}>
+                    Dismiss
+                  </AppButton>
+                </div>
               </ErrorState>
             )}
 
@@ -309,6 +628,30 @@ export function StoryDetailPage() {
               }
             />
 
+            {!isEditing ? (
+              <>
+                <StoryClassroomsSection
+                  assignedClassrooms={classroomAssignment.assignedClassrooms}
+                  isLoading={classroomAssignment.isLoading}
+                />
+                {isAssignPanelOpen ? (
+                  <AssignStoryToClassroomPanel
+                    classrooms={classroomAssignment.classrooms}
+                    selectedClassroomIds={classroomAssignment.selectedClassroomIds}
+                    isLoading={classroomAssignment.isLoading}
+                    isSaving={classroomAssignment.isSaving}
+                    isDirty={classroomAssignment.isDirty}
+                    onToggleClassroom={classroomAssignment.toggleClassroom}
+                    onSave={() => void handleSaveClassroomAssignments()}
+                    onCancel={() => {
+                      classroomAssignment.resetSelection()
+                      setIsAssignPanelOpen(false)
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
             {isGenerated && isEditing && editedStory ? (
               <div className="rounded-xl border-2 border-amber-200 bg-white p-2 sm:p-4">
                 <StoryEditForm
@@ -318,18 +661,59 @@ export function StoryDetailPage() {
                   onImagePromptChange={updateImagePrompt}
                 />
               </div>
-            ) : isGenerated && displayStory ? (
-              <StoryGeneratedContentSections>
-                <StoryPages pages={displayStory.storyPages} />
-                <StoryFlashcards flashcards={displayStory.flashcards} />
-                <StoryImagePrompts imagePrompts={displayStory.imagePrompts} />
-              </StoryGeneratedContentSections>
+            ) : isGenerated && viewStory ? (
+              <div id="story-detail-content">
+                <StoryGeneratedContentSections>
+                  <StoryImageGenerationPanel
+                    missingCount={pageImageGeneration.missingCount}
+                    isGenerating={pageImageGeneration.isGenerating}
+                    lastError={pageImageGeneration.lastError}
+                    onGenerateMissing={() => void handleGenerateMissingImages()}
+                    onSave={handleSaveIllustrations}
+                    canSave={hasUnsavedImages}
+                    isSaving={isMutating}
+                    readyCount={illustrationReadyCount}
+                    failedCount={illustrationFailedCount}
+                    totalPages={viewStory.storyPages.length}
+                  />
+                  <StoryPages
+                    pages={viewStory.storyPages}
+                    imagePrompts={viewStory.imagePrompts}
+                    showImageActions
+                    isPageGenerating={pageImageGeneration.isPageGenerating}
+                    onRegeneratePageImage={(pageNumber) =>
+                      void handleRegeneratePageImage(pageNumber)
+                    }
+                  />
+                  <StoryFlashcards flashcards={viewStory.flashcards} />
+                  <StoryExportActions
+                    story={viewStory}
+                    projectTitle={draft.title}
+                    storyId={draft.id}
+                  />
+                  <ImagePromptReviewPanel
+                    pages={viewStory.storyPages}
+                    prompts={imagePromptReview.prompts}
+                    originalPrompts={imagePromptReview.baseline}
+                    onPromptChange={imagePromptReview.updatePrompt}
+                    onResetPage={imagePromptReview.resetPage}
+                    onResetAll={imagePromptReview.resetAll}
+                    isPageModified={imagePromptReview.isPageModified}
+                    isDirty={imagePromptReview.isDirty}
+                    onSave={handleSaveImagePrompts}
+                    isSaving={isMutating}
+                  />
+                </StoryGeneratedContentSections>
+              </div>
             ) : (
-              <StoryGeneratedContentSections>
-                <StoryPages pages={[]} />
-                <StoryFlashcards flashcards={[]} />
-                <StoryImagePrompts imagePrompts={[]} />
-              </StoryGeneratedContentSections>
+              <AppEmptyState
+                kind="story-not-generated"
+                layout="section"
+                title="Story pages not generated yet"
+                description="Open the story creator to generate pages, vocabulary cards, and illustration notes."
+                actionLabel="Open creator"
+                onAction={handleContinueInCreator}
+              />
             )}
           </div>
         </>

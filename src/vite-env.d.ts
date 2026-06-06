@@ -6,7 +6,9 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_SUPABASE_STORIES: string
   /** Dashboard story generation mode: mock | fixture | ai (Phase 5.2) */
   readonly VITE_GENERATION_MODE: string
-  /** OpenAI API key for dashboard AI mode (Phase 5.4) */
+  /** Backend route for AI story generation (no secrets) */
+  readonly VITE_STORY_GENERATION_API_URL: string
+  /** @deprecated Use server-side OPENAI_API_KEY — never expose provider secrets in VITE_* */
   readonly VITE_OPENAI_API_KEY: string
   readonly VITE_OPENAI_MODEL: string
   /** Story prompt template version for dashboard AI generation (Phase 5.9) */

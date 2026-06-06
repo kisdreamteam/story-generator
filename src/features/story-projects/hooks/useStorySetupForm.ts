@@ -1,3 +1,4 @@
+import { getAppSettings } from '@/features/app-settings'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -32,7 +33,7 @@ export function useStorySetupForm() {
   const [setting, setSetting] = useState(ninaNinoSetupDefaults.setting)
   const [vocabularyFocus, setVocabularyFocus] = useState(ninaNinoSetupDefaults.vocabularyFocus)
   const [learningGoal, setLearningGoal] = useState(ninaNinoSetupDefaults.learningGoal)
-  const [pageCount, setPageCount] = useState(ninaNinoSetupDefaults.pageCount)
+  const [pageCount, setPageCount] = useState(() => getAppSettings().defaultStoryLength)
   const [notes, setNotes] = useState(ninaNinoSetupDefaults.notes)
   const [showReview, setShowReview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)

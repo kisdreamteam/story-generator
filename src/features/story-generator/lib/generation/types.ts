@@ -1,4 +1,5 @@
 import type { StorySetupInput } from '@/features/stories/types'
+import type { StoryPageImageFields } from '@/features/story-images/types'
 import type { StoryGenerationMetadata } from '@/shared/ai/metadata'
 
 /** Teacher setup passed into the generation boundary. */
@@ -6,7 +7,7 @@ export interface StoryGenerationInput {
   setup: StorySetupInput
 }
 
-export interface GeneratedStoryPageOutput {
+export interface GeneratedStoryPageOutput extends StoryPageImageFields {
   pageNumber: number
   text: string
   wordCount: number

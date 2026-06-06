@@ -1,0 +1,22 @@
+{
+  "storyLanguage": {
+    "english": "English",
+    "koreanComingSoon": "Korean (KR) — Coming soon",
+    "vietnameseComingSoon": "Vietnamese (VI) — Coming soon",
+    "generationHint": "Stories are generated in English. Korean and Vietnamese translations are coming soon."
+  },
+  "ageRange": {
+    "3-4": "Ages 3–4",
+    "4-6": "Ages 4–6",
+    "6-8": "Ages 6–8",
+    "ninaNinoHint": "Nina & Nino stories are designed for ages {{range}}"
+  },
+  "pageCount": {
+    "4": "4 pages",
+    "5": "5 pages",
+    "6": "6 pages",
+    "8": "8 pages",
+    "12": "12 pages",
+    "fallback": "{{count}} pages"
+  }
+}

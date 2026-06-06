@@ -1,4 +1,8 @@
-import { persistValidatedStoryEdits } from '@/features/stories/api/storyStorageApi'
+import {
+  persistStoryEditsAsCopy,
+  persistValidatedStoryEdits,
+  type PersistStoryEditsOptions,
+} from '@/features/stories/api/storyStorageApi'
 import type { StoryProject } from '@/features/stories/types'
 import type { ValidateStoryForSaveOptions } from '@/features/stories/utils/storyValidation'
 import type { EditableStoryContent } from '../types'
@@ -9,6 +13,8 @@ export interface SaveStoryEditorChangesResult {
   story: EditableStoryContent
 }
 
+export type SaveStoryEditorOptions = PersistStoryEditsOptions
+
 /**
  * Single save entry point for the story editor — validates, normalizes, and persists
  * via {@link persistValidatedStoryEdits} → {@link StoryStorageAdapter.updateStory}.
@@ -16,7 +22,7 @@ export interface SaveStoryEditorChangesResult {
 export async function saveStoryEditorChanges(
   storyId: string,
   editedStory: EditableStoryContent,
-  options?: ValidateStoryForSaveOptions,
+  options?: SaveStoryEditorOptions,
 ): Promise<SaveStoryEditorChangesResult> {
   if (!storyId.trim()) {
     throw new Error('Cannot save story edits without a story id.')
@@ -30,4 +36,26 @@ export async function saveStoryEditorChanges(
   }
 
   return { project, story }
+}
+
+export interface SaveStoryEditorAsCopyResult extends SaveStoryEditorChangesResult {
+  sourceStoryId: string
+}
+
+/**
+ * Save edited content as a new story — preserves the original project and timestamps.
+ */
+export async function saveStoryEditorChangesAsCopy(
+  sourceStoryId: string,
+  editedStory: EditableStoryContent,
+  options?: ValidateStoryForSaveOptions,
+): Promise<SaveStoryEditorAsCopyResult> {
+  if (!sourceStoryId.trim()) {
+    throw new Error('Cannot save a story copy without a source story id.')
+  }
+
+  const story = normalizeEditableStory(editedStory)
+  const project = await persistStoryEditsAsCopy(sourceStoryId, story, options)
+
+  return { project, story, sourceStoryId }
 }

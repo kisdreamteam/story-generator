@@ -1,6 +1,11 @@
 import { useMemo } from 'react'
 import type { StoryProject } from '../types'
-import { filterStoryProjects, type StoryLibraryFilters } from '../lib/storyLibraryFilters'
+import {
+  filterStoryProjects,
+  sortStoryProjects,
+  type StoryLibraryFilters,
+  type StoryLibrarySort,
+} from '../lib/storyLibraryFilters'
 
 export interface UseFilteredStoryProjectsResult {
   filteredStories: StoryProject[]
@@ -12,9 +17,10 @@ export interface UseFilteredStoryProjectsResult {
 export function useFilteredStoryProjects(
   stories: StoryProject[],
   filters: StoryLibraryFilters,
+  sort: StoryLibrarySort,
 ): UseFilteredStoryProjectsResult {
   return useMemo(() => {
-    const filteredStories = filterStoryProjects(stories, filters)
+    const filteredStories = sortStoryProjects(filterStoryProjects(stories, filters), sort)
     const isFiltered = filteredStories.length !== stories.length
 
     return {
@@ -23,5 +29,5 @@ export function useFilteredStoryProjects(
       filteredCount: filteredStories.length,
       isFiltered,
     }
-  }, [stories, filters])
+  }, [stories, filters, sort])
 }

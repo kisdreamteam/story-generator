@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  getStorySetupFormDefaults,
   mapStorySetupInputToFormValues,
-  storySetupFormDefaults,
   type StorySetupFormValues,
 } from '@/features/stories'
 import { classifyDraftLoad, generatedStoryFromProject } from '../lib/story-project'
@@ -70,7 +70,7 @@ export function useCreateStoryDraftLoader({
             'We could not find this story plan here. It may have been deleted or saved to your account.',
           )
           resetStoryWorkflow()
-          resetForm(storySetupFormDefaults)
+          resetForm(getStorySetupFormDefaults())
           bumpFormKey()
           setStep('form')
           return
@@ -84,7 +84,7 @@ export function useCreateStoryDraftLoader({
           setSetupData(draft!.setup ?? null)
           setGeneratedStory(savedStory)
           resetForm(
-            draft!.setup ? mapStorySetupInputToFormValues(draft!.setup) : storySetupFormDefaults,
+            draft!.setup ? mapStorySetupInputToFormValues(draft!.setup) : getStorySetupFormDefaults(),
           )
           setDraftLoadWarning(null)
           bumpFormKey()
@@ -95,7 +95,7 @@ export function useCreateStoryDraftLoader({
         if (kind === 'no-setup') {
           setDraftLoadWarning('This story has no plan to edit. Start a new story instead.')
           resetStoryWorkflow()
-          resetForm(storySetupFormDefaults)
+          resetForm(getStorySetupFormDefaults())
           bumpFormKey()
           setStep('form')
           return

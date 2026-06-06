@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import '@/shared/i18n/i18n'
 import { AppRouter } from './app/routes'
 import { ToastViewport } from '@/shared/components/toast'
 import { AppErrorBoundary } from '@/shared/components/errors'

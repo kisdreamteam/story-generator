@@ -7,7 +7,7 @@ import {
   SectionCard,
 } from '../../../shared/components'
 import { ninaNinoSeries } from '../../series/services/series.service'
-import { pageCountOptions } from '../config/formOptions'
+import { getPageCountOptions } from '../config/formOptions'
 import { storyPurposeOptions, storyToneOptions } from '../config/setupFormOptions'
 import type { StorySetupFormErrors } from '../types/storySetupForm.types'
 import { NeedIdeasButton } from './NeedIdeasButton'
@@ -201,7 +201,7 @@ export function StorySetupForm({
           <AppSelect
             value={pageCount}
             onChange={(e) => onPageCountChange(e.target.value)}
-            options={pageCountOptions}
+            options={getPageCountOptions()}
             hint="5 pages is a good starting point for ages 4–6."
             error={errors.pageCount}
             aria-label="Number of pages"

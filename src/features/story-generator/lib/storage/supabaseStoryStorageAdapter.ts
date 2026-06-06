@@ -16,8 +16,11 @@ import type {
 } from '../../types/story-generator.types'
 import type { StoryPlanReview } from '@/features/stories/types'
 import { normalizeStoryGenerationMetadata } from '@/shared/ai/metadata'
+import { mergeImagePromptRowsIntoStoryPages, normalizeGeneratedStoryPageImages } from '@/features/story-images/lib/normalizeStoryPageImage'
 import { generatedStoryFromProject, hasGeneratedStoryContent } from '../story-project'
 import { mergeGeneratedStoryUpdate } from './mergeStoryUpdate'
+import type { StoryLifecycleStatus } from '@/features/stories/types/storyLifecycle.types'
+import { toSupabaseProjectStatus } from '@/features/stories/utils/storyLifecycleStatus'
 import type { LoadDraftWithGeneratedStoryResult, StoryStorageAdapterAsync } from './StoryStorageAdapter'
 
 /**
@@ -91,6 +94,7 @@ interface GeneratedMetadataJson {
   totalWordCount?: number
   generatedAt?: string
   contentVersion?: number
+  lifecycleStatus?: StoryLifecycleStatus
 }
 
 const UUID_RE =
@@ -150,8 +154,7 @@ function resolveProjectId(project: StoryProject): string {
 }
 
 function projectStatus(project: StoryProject): 'draft' | 'generated' | 'saved' | 'archived' {
-  if (hasGeneratedStoryContent(project)) return 'saved'
-  return 'draft'
+  return toSupabaseProjectStatus(project)
 }
 
 function toSetupDataJson(project: StoryProject): SetupDataJson {
@@ -171,6 +174,7 @@ function toGeneratedMetadataJson(project: StoryProject): GeneratedMetadataJson {
       generatedStory: project.generatedStory,
       generationMetadata: project.generationMetadata,
       contentVersion: project.version,
+      lifecycleStatus: project.lifecycleStatus,
     }
   }
 
@@ -265,9 +269,12 @@ function buildStoryProjectFromRows(
   const setupData = row.setup_data ?? {}
   const generatedMeta = row.generated_metadata ?? {}
 
-  const storyPages = [...pages]
-    .sort((a, b) => a.page_number - b.page_number)
-    .map(mapPageRow)
+  const storyPages = mergeImagePromptRowsIntoStoryPages(
+    [...pages]
+      .sort((a, b) => a.page_number - b.page_number)
+      .map(mapPageRow),
+    imagePrompts,
+  )
 
   const mappedFlashcards = [...flashcards]
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -278,6 +285,8 @@ function buildStoryProjectFromRows(
     .map(mapImagePromptRow)
 
   let generatedStory: GeneratedStory | undefined = generatedMeta.generatedStory
+    ? normalizeGeneratedStoryPageImages(generatedMeta.generatedStory)
+    : undefined
 
   if (!generatedStory && storyPages.length > 0) {
     generatedStory = {
@@ -310,6 +319,7 @@ function buildStoryProjectFromRows(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     version: generatedMeta.contentVersion,
+    lifecycleStatus: generatedMeta.lifecycleStatus,
     setup: setupData.setup ?? undefined,
     planReview: setupData.planReview ?? undefined,
     generatedStory,

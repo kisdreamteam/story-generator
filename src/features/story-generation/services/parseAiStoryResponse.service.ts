@@ -1,8 +1,5 @@
 import type { StoryGenerationInput, StoryGenerationOutput } from '../types'
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length
-}
+import { parseAiStoryResponseToGeneratedStory } from '../parsers'
 
 /**
  * Parses raw JSON from the backend/AI provider into StoryGenerationOutput.
@@ -13,34 +10,24 @@ export function parseAiStoryResponse(
   rawContent: string,
   input: StoryGenerationInput,
 ): StoryGenerationOutput | null {
-  try {
-    const parsed = JSON.parse(rawContent) as Partial<StoryGenerationOutput>
+  const result = parseAiStoryResponseToGeneratedStory(rawContent, {
+    expectedPageCount: input.pageCount,
+  })
 
-    if (!parsed.title || !parsed.summary || !Array.isArray(parsed.pages)) {
-      return null
-    }
-
-    const pages = parsed.pages.map((page) => ({
-      pageNumber: page.pageNumber,
-      text: page.text,
-      wordCount: page.wordCount ?? countWords(page.text),
-      teachingFocus: page.teachingFocus,
-    }))
-
-    const totalWordCount =
-      parsed.totalWordCount ?? pages.reduce((total, page) => total + page.wordCount, 0)
-
-    return {
-      projectId: input.projectId,
-      generatedAt: new Date().toISOString(),
-      title: parsed.title,
-      summary: parsed.summary,
-      pages,
-      flashcards: parsed.flashcards ?? [],
-      imagePrompts: parsed.imagePrompts ?? [],
-      totalWordCount,
-    }
-  } catch {
+  if (!result.ok) {
     return null
+  }
+
+  const story = result.story
+
+  return {
+    projectId: input.projectId,
+    generatedAt: story.generatedAt,
+    title: story.title,
+    summary: story.summary,
+    pages: story.storyPages,
+    flashcards: story.flashcards,
+    imagePrompts: story.imagePrompts,
+    totalWordCount: story.totalWordCount,
   }
 }

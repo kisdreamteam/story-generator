@@ -1,4 +1,4 @@
-import { pageCountOptions } from '../config/formOptions'
+import { getPageCountLabel } from '../config/formOptions'
 import type { SetupReviewField, SetupReviewSection, SetupReviewValues } from '../types/storySetupForm.types'
 
 function optionalReviewField(
@@ -11,8 +11,7 @@ function optionalReviewField(
 }
 
 function formatPageCount(pageCount: string): string {
-  const option = pageCountOptions.find((item) => item.value === pageCount)
-  return option?.label ?? `${pageCount} pages`
+  return getPageCountLabel(pageCount)
 }
 
 function parseMainEvents(mainEvents: string): string[] {

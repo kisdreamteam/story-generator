@@ -7,10 +7,19 @@ import {
 } from '@/features/stories'
 import { TeacherTemplatePanel } from '@/features/teacher-templates'
 import { useGeneratedStory, useIsGenerating } from '@/features/story-generator'
+import { GenerationProgressProvider } from '@/features/story-generation/GenerationProgressProvider'
 import { CreateStoryGeneratedStep } from './create-story/CreateStoryGeneratedStep'
 import { useCreateStoryPageState } from './create-story/useCreateStoryPageState'
 
 export function CreateStoryPage() {
+  return (
+    <GenerationProgressProvider>
+      <CreateStoryPageContent />
+    </GenerationProgressProvider>
+  )
+}
+
+function CreateStoryPageContent() {
   const {
     step,
     setupData,
@@ -52,7 +61,6 @@ export function CreateStoryPage() {
     handleSaveStory,
     handleViewStory,
     handleEditStory,
-    handleExportStory,
   } = useCreateStoryPageState()
 
   const generatedStory = useGeneratedStory()
@@ -177,7 +185,6 @@ export function CreateStoryPage() {
           onSaveStory={handleSaveStory}
           onViewStory={handleViewStory}
           onEditStory={handleEditStory}
-          onExportStory={handleExportStory}
           onStartOver={handleStartOver}
           onBackToReview={handleBackToReview}
           onRetryGeneration={handleRetryGeneration}

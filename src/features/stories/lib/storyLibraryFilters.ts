@@ -1,82 +1,135 @@
 import type { StoryProject } from '../types'
+import type { StoryLifecycleStatus } from '../types/storyLifecycle.types'
+import { resolveStoryLifecycleStatus } from '../utils/storyLifecycleStatus'
 import { formatStoryDate } from '../utils/storyFormat'
 
+export type StoryLibrarySort = 'recent' | 'oldest' | 'alphabetical'
+
+export const STORY_LIBRARY_SORT_OPTIONS: readonly StoryLibrarySort[] = [
+  'recent',
+  'oldest',
+  'alphabetical',
+]
+
+export const STORY_LIBRARY_SORT_LABELS: Record<StoryLibrarySort, string> = {
+  recent: 'Most recent',
+  oldest: 'Oldest first',
+  alphabetical: 'A–Z',
+}
+
+export const DEFAULT_STORY_LIBRARY_SORT: StoryLibrarySort = 'recent'
+
 export interface StoryLibraryFilters {
+  /** Broad search across title, topic, vocabulary, and lesson notes. */
+  search: string
+  /** Narrow filter — story title only. */
   title: string
-  vocabulary: string
-  topic: string
-  ageGroup: string
+  status: StoryLifecycleStatus | ''
   createdDate: string
 }
 
 export const STORY_FILTER_SEARCH_PARAMS = {
+  search: 'q',
   title: 'title',
-  vocabulary: 'vocab',
-  topic: 'topic',
-  ageGroup: 'age',
   createdDate: 'created',
+  status: 'status',
+  sort: 'sort',
 } as const
 
 export const EMPTY_STORY_LIBRARY_FILTERS: StoryLibraryFilters = {
+  search: '',
   title: '',
-  vocabulary: '',
-  topic: '',
-  ageGroup: '',
+  status: '',
   createdDate: '',
 }
 
 export const STORY_LIBRARY_FILTER_DEBOUNCE_MS = 300
 
-const TEXT_FILTER_KEYS = ['title', 'vocabulary', 'topic'] as const satisfies ReadonlyArray<
+const DEBOUNCED_FILTER_KEYS = ['search', 'title'] as const satisfies ReadonlyArray<
   keyof StoryLibraryFilters
 >
 
-export type StoryLibraryTextFilterKey = (typeof TEXT_FILTER_KEYS)[number]
+export type StoryLibraryDebouncedFilterKey = (typeof DEBOUNCED_FILTER_KEYS)[number]
 
-export function isStoryLibraryTextFilterKey(
+export function isStoryLibraryDebouncedFilterKey(
   key: keyof StoryLibraryFilters,
-): key is StoryLibraryTextFilterKey {
-  return TEXT_FILTER_KEYS.includes(key as StoryLibraryTextFilterKey)
+): key is StoryLibraryDebouncedFilterKey {
+  return DEBOUNCED_FILTER_KEYS.includes(key as StoryLibraryDebouncedFilterKey)
+}
+
+export function isStoryLibrarySort(value: string): value is StoryLibrarySort {
+  return STORY_LIBRARY_SORT_OPTIONS.includes(value as StoryLibrarySort)
+}
+
+export function parseStoryLibrarySort(searchParams: URLSearchParams): StoryLibrarySort {
+  const raw = searchParams.get(STORY_FILTER_SEARCH_PARAMS.sort) ?? ''
+  return isStoryLibrarySort(raw) ? raw : DEFAULT_STORY_LIBRARY_SORT
 }
 
 export function parseStoryLibraryFilters(
   searchParams: URLSearchParams,
 ): StoryLibraryFilters {
+  const rawStatus = searchParams.get(STORY_FILTER_SEARCH_PARAMS.status) ?? ''
+  const status =
+    rawStatus === 'draft' ||
+    rawStatus === 'generated' ||
+    rawStatus === 'edited' ||
+    rawStatus === 'completed'
+      ? rawStatus
+      : ''
+
+  const search = searchParams.get(STORY_FILTER_SEARCH_PARAMS.search) ?? ''
+  const legacyVocabulary = searchParams.get('vocab') ?? ''
+  const legacyTopic = searchParams.get('topic') ?? ''
+
   return {
+    search: search || [legacyVocabulary, legacyTopic].filter(Boolean).join(' ').trim(),
     title: searchParams.get(STORY_FILTER_SEARCH_PARAMS.title) ?? '',
-    vocabulary: searchParams.get(STORY_FILTER_SEARCH_PARAMS.vocabulary) ?? '',
-    topic: searchParams.get(STORY_FILTER_SEARCH_PARAMS.topic) ?? '',
-    ageGroup: searchParams.get(STORY_FILTER_SEARCH_PARAMS.ageGroup) ?? '',
     createdDate: searchParams.get(STORY_FILTER_SEARCH_PARAMS.createdDate) ?? '',
+    status,
   }
 }
 
-export function pickStoryLibraryTextFilters(
+export function pickStoryLibraryDebouncedFilters(
   filters: StoryLibraryFilters,
-): Pick<StoryLibraryFilters, StoryLibraryTextFilterKey> {
+): Pick<StoryLibraryFilters, StoryLibraryDebouncedFilterKey> {
   return {
+    search: filters.search,
     title: filters.title,
-    vocabulary: filters.vocabulary,
-    topic: filters.topic,
   }
 }
 
 export function writeStoryLibraryFiltersToSearchParams(
   filters: StoryLibraryFilters,
+  sort: StoryLibrarySort,
   searchParams: URLSearchParams,
 ): URLSearchParams {
   const next = new URLSearchParams(searchParams)
 
   for (const [key, param] of Object.entries(STORY_FILTER_SEARCH_PARAMS) as Array<
-    [keyof StoryLibraryFilters, string]
+    [keyof StoryLibraryFilters | 'sort', string]
   >) {
-    const value = filters[key].trim()
-    if (value) {
-      next.set(param, value)
+    if (key === 'sort') continue
+
+    const value = filters[key as keyof StoryLibraryFilters]?.trim?.() ?? filters[key as keyof StoryLibraryFilters]
+    const trimmed = typeof value === 'string' ? value.trim() : ''
+
+    if (trimmed) {
+      next.set(param, trimmed)
     } else {
       next.delete(param)
     }
   }
+
+  if (sort !== DEFAULT_STORY_LIBRARY_SORT) {
+    next.set(STORY_FILTER_SEARCH_PARAMS.sort, sort)
+  } else {
+    next.delete(STORY_FILTER_SEARCH_PARAMS.sort)
+  }
+
+  next.delete('vocab')
+  next.delete('topic')
+  next.delete('age')
 
   return next
 }
@@ -89,6 +142,13 @@ export function hasActiveStoryLibraryFilters(filters: StoryLibraryFilters): bool
   return countActiveStoryLibraryFilters(filters) > 0
 }
 
+export function hasActiveStoryLibraryQuery(
+  filters: StoryLibraryFilters,
+  sort: StoryLibrarySort,
+): boolean {
+  return hasActiveStoryLibraryFilters(filters) || sort !== DEFAULT_STORY_LIBRARY_SORT
+}
+
 function includesQuery(haystack: string, query: string): boolean {
   const normalized = query.trim().toLowerCase()
   if (!normalized) return true
@@ -99,13 +159,24 @@ function getProjectTitle(project: StoryProject): string {
   return project.generatedStory?.title?.trim() || project.title.trim()
 }
 
-function getProjectVocabularyText(project: StoryProject): string {
-  const fromProject = project.vocabularyWords.join(' ')
-  const fromFlashcards = project.flashcards.map((card) => card.word).join(' ')
-  const fromSetup = project.setup?.wordsToInclude ?? ''
-  const fromGenerated = project.generatedStory?.flashcards.map((card) => card.word).join(' ') ?? ''
+function getProjectSearchText(project: StoryProject): string {
+  const vocabularyWords = project.vocabularyWords.join(' ')
+  const flashcardWords = project.flashcards.map((card) => card.word).join(' ')
+  const generatedFlashcardWords =
+    project.generatedStory?.flashcards.map((card) => card.word).join(' ') ?? ''
+  const setupWords = project.setup?.wordsToInclude ?? ''
 
-  return [fromProject, fromFlashcards, fromSetup, fromGenerated].join(' ')
+  return [
+    getProjectTitle(project),
+    project.theme,
+    project.lessonGoal,
+    project.setting,
+    project.characters,
+    vocabularyWords,
+    flashcardWords,
+    generatedFlashcardWords,
+    setupWords,
+  ].join(' ')
 }
 
 function matchesCreatedDateFilter(project: StoryProject, query: string): boolean {
@@ -128,19 +199,15 @@ export function storyProjectMatchesFilters(
   project: StoryProject,
   filters: StoryLibraryFilters,
 ): boolean {
+  if (!includesQuery(getProjectSearchText(project), filters.search)) {
+    return false
+  }
+
   if (!includesQuery(getProjectTitle(project), filters.title)) {
     return false
   }
 
-  if (!includesQuery(getProjectVocabularyText(project), filters.vocabulary)) {
-    return false
-  }
-
-  if (!includesQuery(project.theme, filters.topic)) {
-    return false
-  }
-
-  if (filters.ageGroup.trim() && project.ageRange !== filters.ageGroup.trim()) {
+  if (filters.status && resolveStoryLifecycleStatus(project) !== filters.status) {
     return false
   }
 
@@ -151,7 +218,7 @@ export function storyProjectMatchesFilters(
   return true
 }
 
-/** Filter and preserve caller sort order. */
+/** Filter stories in memory — preserves order until sorted. */
 export function filterStoryProjects(
   stories: StoryProject[],
   filters: StoryLibraryFilters,
@@ -161,4 +228,44 @@ export function filterStoryProjects(
   }
 
   return stories.filter((project) => storyProjectMatchesFilters(project, filters))
+}
+
+/** Sort stories in memory — local only, no backend. */
+export function sortStoryProjects(
+  stories: StoryProject[],
+  sort: StoryLibrarySort,
+): StoryProject[] {
+  const copy = [...stories]
+
+  switch (sort) {
+    case 'oldest':
+      return copy.sort(
+        (left, right) =>
+          new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime(),
+      )
+    case 'alphabetical':
+      return copy.sort((left, right) =>
+        getProjectTitle(left).localeCompare(getProjectTitle(right), undefined, {
+          sensitivity: 'base',
+        }),
+      )
+    case 'recent':
+    default:
+      return copy.sort(
+        (left, right) =>
+          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+      )
+  }
+}
+
+export function getStoryLibrarySortDescription(sort: StoryLibrarySort): string {
+  switch (sort) {
+    case 'oldest':
+      return 'oldest first'
+    case 'alphabetical':
+      return 'A–Z'
+    case 'recent':
+    default:
+      return 'most recent first'
+  }
 }

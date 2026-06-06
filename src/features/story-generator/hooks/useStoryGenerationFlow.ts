@@ -1,6 +1,8 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { classifyGenerationFailure } from '@/shared/ai/recovery'
+import { getGenerationConfig } from '@/shared/config'
+import { isRealAiGenerationFeatureEnabled } from '@/features/story-generation/api/storyGenerationBackend.config'
 import { storyFeedback } from '@/shared/feedback'
 import {
   cancelStoryGeneration,
@@ -74,11 +76,25 @@ export function useStoryGenerationFlow() {
   const runGeneration = useCallback(
     async (setupData: StorySetupInput): Promise<GeneratedStoryOutput> => {
       const generationId = startGeneration()
+      const usingRealAi = isRealAiGenerationFeatureEnabled()
+
+      if (usingRealAi) {
+        storyFeedback.generationStarted()
+      }
 
       try {
         const output = await generateStory(storyGenerationInputFromSetup(setupData))
         workflow.setGeneratedStory(output)
         finishGeneration(generationId)
+
+        if (
+          usingRealAi &&
+          getGenerationConfig().isRealAiMode &&
+          output.generationMetadata?.provider === 'mock'
+        ) {
+          storyFeedback.generationSucceededWithFallback()
+        }
+
         return output
       } catch (error) {
         applyRecoveryState(generationId, error)

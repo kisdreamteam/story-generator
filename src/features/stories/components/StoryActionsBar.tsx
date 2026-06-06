@@ -3,9 +3,12 @@ import { AppButton, ComingSoonBadge } from '@/shared/components'
 export type StoryActionKey =
   | 'edit'
   | 'save'
+  | 'saveAsCopy'
   | 'cancel'
+  | 'complete'
   | 'duplicate'
   | 'delete'
+  | 'assignClassroom'
   | 'ai'
 
 type AppButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -30,37 +33,54 @@ export interface StoryActionsBarProps {
 const DEFAULT_LABELS: Record<StoryActionKey, string> = {
   edit: 'Edit pages',
   save: 'Save changes',
+  saveAsCopy: 'Save as copy',
   cancel: 'Cancel',
+  complete: 'Mark lesson done',
   duplicate: 'Duplicate',
   delete: 'Delete story',
+  assignClassroom: 'Assign to classroom',
   ai: 'Story ideas',
 }
 
 const DEFAULT_VARIANTS: Record<StoryActionKey, AppButtonVariant> = {
   edit: 'secondary',
   save: 'primary',
+  saveAsCopy: 'secondary',
   cancel: 'ghost',
+  complete: 'secondary',
   duplicate: 'secondary',
   delete: 'danger',
+  assignClassroom: 'secondary',
   ai: 'secondary',
 }
 
 const LOADING_LABELS: Partial<Record<StoryActionKey, string>> = {
   save: 'Saving…',
+  saveAsCopy: 'Saving copy…',
+  complete: 'Marking…',
   duplicate: 'Duplicating…',
   delete: 'Deleting…',
 }
 
-const MANAGEMENT_ACTIONS: StoryActionKey[] = ['duplicate', 'delete', 'ai']
-const WORKFLOW_ACTIONS: StoryActionKey[] = ['edit', 'cancel', 'save']
+const MANAGEMENT_ACTIONS: StoryActionKey[] = [
+  'complete',
+  'duplicate',
+  'assignClassroom',
+  'delete',
+  'ai',
+]
+const WORKFLOW_ACTIONS: StoryActionKey[] = ['edit', 'cancel', 'saveAsCopy', 'save']
 
 const WORKFLOW_ORDER: Record<StoryActionKey, number> = {
   edit: 0,
   cancel: 1,
-  save: 2,
-  duplicate: 3,
-  delete: 4,
-  ai: 5,
+  saveAsCopy: 2,
+  save: 3,
+  complete: 4,
+  duplicate: 5,
+  delete: 6,
+  assignClassroom: 7,
+  ai: 8,
 }
 
 function isComingSoonAction(action: StoryActionConfig): boolean {

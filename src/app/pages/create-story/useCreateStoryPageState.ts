@@ -16,7 +16,7 @@ import {
   mapStorySetupInputToFormValues,
   areStorySetupFormValuesEqual,
   areStorySetupInputsEqual,
-  storySetupFormDefaults,
+  getStorySetupFormDefaults,
   type GeneratedStory,
   type StorySetupFormValues,
   type StorySetupInput,
@@ -54,9 +54,9 @@ export function useCreateStoryPageState() {
     useStoryGenerationFlow()
 
   const [step, setStep] = useState<CreateStoryStep>('form')
-  const [formValues, setFormValues] = useState<StorySetupFormValues>(storySetupFormDefaults)
-  const [formBaseline, setFormBaseline] = useState<StorySetupFormValues>(storySetupFormDefaults)
-  const [liveFormValues, setLiveFormValues] = useState<StorySetupFormValues>(storySetupFormDefaults)
+  const [formValues, setFormValues] = useState<StorySetupFormValues>(() => getStorySetupFormDefaults())
+  const [formBaseline, setFormBaseline] = useState<StorySetupFormValues>(() => getStorySetupFormDefaults())
+  const [liveFormValues, setLiveFormValues] = useState<StorySetupFormValues>(() => getStorySetupFormDefaults())
   const [formKey, setFormKey] = useState(0)
   const [draftSaved, setDraftSaved] = useState(false)
   const [storySaved, setStorySaved] = useState(false)
@@ -452,7 +452,7 @@ export function useCreateStoryPageState() {
     cancelGeneration()
     resetGeneration()
     workflow.resetStoryWorkflow()
-    resetForm(storySetupFormDefaults)
+    resetForm(getStorySetupFormDefaults())
     bumpFormKey()
     setDraftSaved(false)
     setStorySaved(false)
@@ -504,10 +504,6 @@ export function useCreateStoryPageState() {
     }
   }
 
-  function handleExportStory() {
-    // Export (Slides/PDF) reserved for a later phase — button stays disabled until saved.
-  }
-
   const showGeneratedPreview = !isGenerating && Boolean(generatedStory)
 
   return {
@@ -553,6 +549,5 @@ export function useCreateStoryPageState() {
     handleSaveStory,
     handleViewStory,
     handleEditStory,
-    handleExportStory,
   }
 }

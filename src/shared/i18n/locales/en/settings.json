@@ -1,0 +1,15 @@
+{
+  "title": "Settings",
+  "description": "Account sign-in and story defaults for this device.",
+  "storyDefaultsTitle": "Story defaults",
+  "storyDefaultsDescription": "These values pre-fill new story plans on this device.",
+  "defaultLanguage": "Default language",
+  "defaultLanguageHint": "Used when you start a new story plan.",
+  "defaultAgeRange": "Default age range",
+  "defaultAgeRangeHint": "Guides reading level and sentence length.",
+  "defaultStoryLength": "Default story length",
+  "defaultStoryLengthHint": "Page count for new story plans.",
+  "defaultSeries": "Default series",
+  "defaultSeriesHint": "Story world for new projects.",
+  "saveDefaults": "Save defaults"
+}

@@ -16,6 +16,7 @@ const inlineToneClasses: Record<NonNullable<ErrorStateProps['tone']>, string> = 
   info: 'border-sky-200 bg-sky-50 text-sky-900',
 }
 
+export type { ErrorStateProps }
 export function ErrorState({
   title,
   description,

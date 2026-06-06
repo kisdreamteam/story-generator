@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getAppSettings } from '@/features/app-settings'
 import {
-  defaultSeries,
   getSeriesById,
   seriesList,
 } from '../../series/services/series.service'
-import { DEFAULT_LANGUAGE } from '../config/formOptions'
 import { generateProjectId } from '../services/projects.service'
 
 export function useCreateProjectForm() {
   const navigate = useNavigate()
+  const settings = getAppSettings()
   const [title, setTitle] = useState('')
-  const [seriesId, setSeriesId] = useState(defaultSeries.id)
-  const [targetLanguage, setTargetLanguage] = useState(DEFAULT_LANGUAGE)
-  const [ageGroup, setAgeGroup] = useState('4-6')
+  const [seriesId, setSeriesId] = useState(settings.defaultSeriesId)
+  const [targetLanguage, setTargetLanguage] = useState(settings.defaultLanguage)
+  const [ageGroup, setAgeGroup] = useState(settings.defaultAgeRange)
 
   const selectedSeries = getSeriesById(seriesId)
 

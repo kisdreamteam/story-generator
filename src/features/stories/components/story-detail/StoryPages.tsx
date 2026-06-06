@@ -3,7 +3,13 @@ import { StoryDetailSectionFallback } from './StoryDetailSectionFallback'
 import { StoryPageReadCard } from './StoryPageReadCard'
 import type { StoryPagesProps } from './types'
 
-export function StoryPages({ pages }: StoryPagesProps) {
+export function StoryPages({
+  pages,
+  imagePrompts = [],
+  showImageActions = false,
+  isPageGenerating,
+  onRegeneratePageImage,
+}: StoryPagesProps) {
   return (
     <SectionCard
       title="Story for your class"
@@ -14,7 +20,18 @@ export function StoryPages({ pages }: StoryPagesProps) {
       ) : (
         <div className="space-y-5">
           {pages.map((page) => (
-            <StoryPageReadCard key={page.pageNumber} page={page} />
+            <StoryPageReadCard
+              key={page.pageNumber}
+              page={page}
+              imagePrompts={imagePrompts}
+              showImageActions={showImageActions}
+              isGenerating={isPageGenerating?.(page.pageNumber) ?? false}
+              onRegenerate={
+                onRegeneratePageImage
+                  ? () => onRegeneratePageImage(page.pageNumber)
+                  : undefined
+              }
+            />
           ))}
         </div>
       )}

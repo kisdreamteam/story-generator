@@ -1,9 +1,9 @@
 import {
-  ageGroupOptions,
   DEFAULT_LANGUAGE,
-  languageOptions,
-  pageCountOptions,
+  getAgeRangeLabel,
+  getPageCountOptions,
 } from '../../story-projects/config/formOptions'
+import { getAppSettings } from '@/features/app-settings'
 import type { StorySetupInput } from '../types'
 
 export interface StorySetupFormValues {
@@ -43,12 +43,26 @@ Share what they learned at school`,
   additionalNotes: 'Keep tone warm and classroom-friendly. Nina and Nino are siblings, not twins.',
 }
 
-const extendedPageCountOptions = [
-  ...pageCountOptions,
-  { value: '12', label: '12 pages' },
-]
+/** Story setup defaults with saved app preferences applied. */
+export function getStorySetupFormDefaults(): StorySetupFormValues {
+  const settings = getAppSettings()
 
-export { extendedPageCountOptions as storyPageCountOptions, ageGroupOptions, languageOptions }
+  return {
+    ...storySetupFormDefaults,
+    ageRange: settings.defaultAgeRange,
+    language: settings.defaultLanguage,
+    pageCount: settings.defaultStoryLength,
+  }
+}
+
+const extendedPageCountOptions = getPageCountOptions(true)
+
+export { extendedPageCountOptions as storyPageCountOptions }
+export {
+  getAgeGroupOptions,
+  getAgeRangeLabel,
+  getLanguageOptions,
+} from '../../story-projects/config/formOptions'
 
 const WORKING_TITLE_PREFIX = 'Working title: '
 
@@ -86,10 +100,6 @@ export function parseCharactersFromInput(characters: string): {
     mainCharacters: lines[0] ?? '',
     additionalCharacters: lines.slice(1).join('\n'),
   }
-}
-
-export function getAgeRangeLabel(value: string): string {
-  return ageGroupOptions.find((option) => option.value === value)?.label ?? value
 }
 
 /** Maps StorySetupInput back to teacher-facing form fields for editing. */

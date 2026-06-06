@@ -1,43 +1,48 @@
-import { GenerationMode, getGenerationMode } from '@/shared/config'
+import { getGenerationConfig } from '@/shared/config'
+import {
+  adaptAIProviderToLegacyStoryProvider,
+  adaptLegacyStoryProviderToAIProvider,
+  getAIProvider,
+  mockAIProvider,
+  registerAIProviderLoader,
+  resetAIProvider,
+  resolveAIProvider,
+  setAIProvider,
+} from '@/shared/lib/ai'
 import type { AIStoryProvider } from '../types'
-import { mockAIStoryProvider } from './mockAIStoryProvider'
 
 type AIStoryProviderLoader = () => Promise<AIStoryProvider>
 
-let activeProvider: AIStoryProvider = mockAIStoryProvider
-let aiProviderLoader: AIStoryProviderLoader | null = null
-
 /** Replace the active provider — useful in tests or custom bootstrap. */
 export function setAIStoryProvider(provider: AIStoryProvider): void {
-  activeProvider = provider
+  setAIProvider(adaptLegacyStoryProviderToAIProvider(provider))
 }
 
 /** Register a lazy loader for the real AI backend (keeps OpenAI out of the shared bundle). */
 export function registerAIStoryProviderLoader(loader: AIStoryProviderLoader): void {
-  aiProviderLoader = loader
+  registerAIProviderLoader(async () => adaptLegacyStoryProviderToAIProvider(await loader()))
 }
 
 /** Reset to the mock provider — useful in tests. */
 export function resetAIStoryProvider(): void {
-  activeProvider = mockAIStoryProvider
-  aiProviderLoader = null
+  resetAIProvider()
 }
 
 export function getAIStoryProvider(): AIStoryProvider {
-  return activeProvider
+  return adaptAIProviderToLegacyStoryProvider(getAIProvider())
 }
 
 /** Resolve the provider for the current generation mode. */
 export async function resolveAIStoryProvider(): Promise<AIStoryProvider> {
-  if (activeProvider !== mockAIStoryProvider) {
-    return activeProvider
+  if (getAIProvider() !== mockAIProvider) {
+    return adaptAIProviderToLegacyStoryProvider(getAIProvider())
   }
 
-  const mode = getGenerationMode()
+  const { isRealAiMode } = getGenerationConfig()
 
-  if (mode === GenerationMode.AI && aiProviderLoader) {
-    return aiProviderLoader()
+  if (isRealAiMode) {
+    return adaptAIProviderToLegacyStoryProvider(await resolveAIProvider())
   }
 
-  return mockAIStoryProvider
+  return adaptAIProviderToLegacyStoryProvider(mockAIProvider)
 }

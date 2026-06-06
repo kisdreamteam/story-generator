@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { AppButton, AppCard } from '@/shared/components'
 import type { StoryProject } from '../types'
 import { formatStoryDate } from '../utils/storyFormat'
-import { getStoryStatusLabelForProject } from '../utils/storyStatus'
+import { resolveStoryLifecycleStatus } from '../utils/storyLifecycleStatus'
 import { getAgeRangeLabel } from '../utils/storySetupForm'
 import { StoryStatusBadge } from './StoryStatusBadge'
 
@@ -41,7 +41,7 @@ export const StoryProjectCard = memo(function StoryProjectCard({
   isDeleting = false,
   isDuplicating = false,
 }: StoryProjectCardProps) {
-  const badgeLabel = statusLabel ?? getStoryStatusLabelForProject(project)
+  const lifecycleStatus = resolveStoryLifecycleStatus(project)
   const showUpdated =
     project.updatedAt !== project.createdAt &&
     formatStoryDate(project.updatedAt) !== formatStoryDate(project.createdAt)
@@ -52,7 +52,10 @@ export const StoryProjectCard = memo(function StoryProjectCard({
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold leading-snug text-stone-900">{project.title}</h3>
-            <StoryStatusBadge label={badgeLabel} />
+            <StoryStatusBadge
+              label={statusLabel}
+              status={statusLabel ? undefined : lifecycleStatus}
+            />
           </div>
 
           <p className="text-sm leading-relaxed text-stone-600">{buildScanMetaLine(project)}</p>

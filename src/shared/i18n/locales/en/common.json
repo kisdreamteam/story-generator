@@ -1,0 +1,15 @@
+{
+  "appName": "Nina & Nino",
+  "appTagline": "Story Creator",
+  "menu": "Menu",
+  "signIn": "Sign in",
+  "signOut": "Sign out",
+  "checkingSession": "Checking session…",
+  "openNavMenu": "Open navigation menu",
+  "closeNavMenu": "Close navigation menu",
+  "backToHome": "Back to home",
+  "save": "Save",
+  "saving": "Saving…",
+  "settingsSaved": "Settings saved",
+  "settingsSavedDescription": "Your defaults will apply to new story plans."
+}

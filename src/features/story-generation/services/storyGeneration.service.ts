@@ -8,7 +8,7 @@ import {
   simulateGenerationLatency,
 } from './generationLatency.service'
 import { mockFlashcards, mockImagePrompts, mockPages } from './mockStoryData'
-import { parseAiStoryResponse } from './parseAiStoryResponse.service'
+import { parseAiStoryResponseToGeneratedStory } from '../parsers'
 import { requestAiStoryGeneration } from './requestAiStoryGeneration'
 import { buildStoryPrompt } from './storyPrompt.service'
 import { validateStoryOutput } from './validateStoryOutput.service'
@@ -71,13 +71,27 @@ function tryAiGeneration(input: StoryGenerationInput): AiAttemptResult {
     }
   }
 
-  const parsed = parseAiStoryResponse(apiResponse.rawText, input)
-  if (!parsed) {
+  const parsedResult = parseAiStoryResponseToGeneratedStory(apiResponse.rawText, {
+    expectedPageCount: input.pageCount,
+  })
+
+  if (!parsedResult.ok) {
     return {
       result: null,
-      lastAiError: 'Could not parse AI response into story output.',
+      lastAiError: parsedResult.error,
       fallbackReason: 'parse-failed',
     }
+  }
+
+  const parsed: StoryGenerationOutput = {
+    projectId: input.projectId,
+    generatedAt: parsedResult.story.generatedAt,
+    title: parsedResult.story.title,
+    summary: parsedResult.story.summary,
+    pages: parsedResult.story.storyPages,
+    flashcards: parsedResult.story.flashcards,
+    imagePrompts: parsedResult.story.imagePrompts,
+    totalWordCount: parsedResult.story.totalWordCount,
   }
 
   const validation = validateStoryOutput(parsed)

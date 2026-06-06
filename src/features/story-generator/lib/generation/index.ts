@@ -2,6 +2,11 @@ export {
   generateStory,
   cancelStoryGeneration,
   retryStoryGenerationJob,
+  resumeStoryGeneration,
+  retryFailedStoryGenerationStep,
+  recoverInterruptedStoryGeneration,
+  getRecoverableStoryGenerationSession,
+  clearStoryGenerationRecoverySession,
   getRecoverablePartialOutput,
   isGenerationRecoveryError,
 } from './storyGenerationService'

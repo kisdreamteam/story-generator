@@ -6,8 +6,14 @@
  * Persist and preview use `convertEditorStateToGeneratedStory()` at boundaries.
  */
 
-export { saveStoryEditorChanges } from './api/saveStoryEditorChanges'
-export type { SaveStoryEditorChangesResult } from './api/saveStoryEditorChanges'
+export { saveStoryEditorChanges, saveStoryEditorChangesAsCopy } from './api/saveStoryEditorChanges'
+export type {
+  SaveStoryEditorAsCopyResult,
+  SaveStoryEditorChangesResult,
+  SaveStoryEditorOptions,
+} from './api/saveStoryEditorChanges'
+export { StoryEditor } from './StoryEditor'
+export type { StoryEditorChangePayload, StoryEditorProps } from './StoryEditor'
 export { StoryEditorPage } from './StoryEditorPage'
 export { StoryEditProvider } from './StoryEditProvider'
 export type { StoryEditProviderProps } from './StoryEditProvider'
@@ -39,6 +45,7 @@ export {
   ImagePromptEditor,
   StoryAutosaveStatus,
   StoryEditingToolbar,
+  StoryEditorToolbar,
   StoryEditorModeToggle,
   StoryEditorViewSwitcher,
   StoryMetadataEditor,
@@ -51,6 +58,7 @@ export {
 } from './components'
 export type {
   StoryEditingToolbarProps,
+  StoryEditorToolbarProps,
   StoryEditorModeToggleProps,
   StoryEditorViewSwitcherProps,
   FlashcardEditorProps,

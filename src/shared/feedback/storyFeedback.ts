@@ -18,6 +18,24 @@ export const storyFeedback = {
     toast.success('Changes saved', description)
   },
 
+  storySavedAsCopy(title?: string) {
+    const trimmed = title?.trim()
+    toast.success(
+      'Saved as copy',
+      trimmed
+        ? `"${trimmed}" was added to Your stories. The original story was not changed.`
+        : 'Your edits were saved as a new story. The original was not changed.',
+    )
+  },
+
+  storyCompleted(title?: string) {
+    const trimmed = title?.trim()
+    toast.success(
+      'Story marked complete',
+      trimmed ? `"${trimmed}" is ready for your classroom.` : 'Your story is ready for your classroom.',
+    )
+  },
+
   storyDuplicated(title?: string) {
     const trimmed = title?.trim()
     toast.success(
@@ -48,6 +66,46 @@ export const storyFeedback = {
     toast.error(
       'Could not create your story',
       description ?? 'Save your plan and try again later.',
+    )
+  },
+
+  generationStarted(description = 'Connecting to AI story generation. This may take a moment.') {
+    toast.info('Creating your story', description)
+  },
+
+  generationSucceededWithFallback(description = 'AI generation was unavailable, so a sample story was used instead.') {
+    toast.warning('Sample story created', description)
+  },
+
+  imagesGenerated(count: number) {
+    const label = count === 1 ? '1 page illustration' : `${count} page illustrations`
+    toast.success('Images generated', `${label} ${count === 1 ? 'is' : 'are'} ready. Save to keep them with your story.`)
+  },
+
+  imageGenerationFailed(description?: string) {
+    toast.error(
+      'Could not generate image',
+      description ?? 'Try again or edit the illustration prompt for that page.',
+    )
+  },
+
+  storyClassroomAssignmentsSaved(count: number) {
+    const label =
+      count === 0
+        ? 'Classroom assignments cleared'
+        : count === 1
+          ? 'Assigned to 1 classroom'
+          : `Assigned to ${count} classrooms`
+    toast.success('Classroom assignments saved', label)
+  },
+
+  storyRemovedFromClassroom(title?: string) {
+    const trimmed = title?.trim()
+    toast.success(
+      'Removed from classroom',
+      trimmed
+        ? `"${trimmed}" is still in Your stories.`
+        : 'The story is still in Your stories.',
     )
   },
 
@@ -118,5 +176,17 @@ export const storyFeedback = {
         ? `"${trimmed}" filled your setup form. Edit anything before you continue.`
         : 'Template fields were added to your setup form.',
     )
+  },
+
+  storyTextCopied() {
+    toast.success('Story text copied', 'Paste it into notes, slides, or a document.')
+  },
+
+  storyJsonDownloaded() {
+    toast.success('JSON downloaded', 'Your story data was saved as a file.')
+  },
+
+  storyExportFailed(description: string) {
+    toast.error('Export failed', description)
   },
 }

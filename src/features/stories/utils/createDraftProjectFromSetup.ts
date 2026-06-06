@@ -1,4 +1,5 @@
 import type { StoryProject, StorySetupInput } from '../types'
+import { withStoryLifecycleStatus } from './storyLifecycleStatus'
 import { parseTitleFromNotes } from './storySetupForm'
 
 function createDraftId(): string {
@@ -28,22 +29,25 @@ export function createDraftProjectFromSetup(
   const { title } = parseTitleFromNotes(setupData.notes)
   const now = new Date().toISOString()
 
-  return {
-    id: options?.id ?? createDraftId(),
-    title: title || setupData.theme || 'Untitled story',
-    theme: setupData.theme,
-    ageRange: setupData.ageRange,
-    language: setupData.language,
-    pageCount: setupData.pageCount,
-    lessonGoal: setupData.lessonGoal,
-    vocabularyWords: parseVocabularyWords(setupData.wordsToInclude),
-    setting: setupData.setting,
-    characters: setupData.characters,
-    storyPages: [],
-    flashcards: [],
-    imagePrompts: [],
-    createdAt: options?.createdAt ?? now,
-    updatedAt: now,
-    setup: setupData,
-  }
+  return withStoryLifecycleStatus(
+    {
+      id: options?.id ?? createDraftId(),
+      title: title || setupData.theme || 'Untitled story',
+      theme: setupData.theme,
+      ageRange: setupData.ageRange,
+      language: setupData.language,
+      pageCount: setupData.pageCount,
+      lessonGoal: setupData.lessonGoal,
+      vocabularyWords: parseVocabularyWords(setupData.wordsToInclude),
+      setting: setupData.setting,
+      characters: setupData.characters,
+      storyPages: [],
+      flashcards: [],
+      imagePrompts: [],
+      createdAt: options?.createdAt ?? now,
+      updatedAt: now,
+      setup: setupData,
+    },
+    'draft',
+  )
 }

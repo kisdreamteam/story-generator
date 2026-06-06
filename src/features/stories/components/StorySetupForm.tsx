@@ -10,11 +10,11 @@ import {
 } from '../../../shared/components'
 import type { StorySetupInput } from '../types'
 import {
-  ageGroupOptions,
-  languageOptions,
+  getAgeGroupOptions,
+  getLanguageOptions,
+  getStorySetupFormDefaults,
   mapStorySetupFormToInput,
   storyPageCountOptions,
-  storySetupFormDefaults,
   type StorySetupFormValues,
 } from '../utils/storySetupForm'
 
@@ -27,7 +27,7 @@ interface StorySetupFormProps {
 
 export function StorySetupForm({ initialValues, onSubmit, onValuesChange }: StorySetupFormProps) {
   const [values, setValues] = useState<StorySetupFormValues>(
-    initialValues ?? storySetupFormDefaults,
+    initialValues ?? getStorySetupFormDefaults(),
   )
 
   function updateField<K extends keyof StorySetupFormValues>(field: K, value: StorySetupFormValues[K]) {
@@ -104,14 +104,14 @@ export function StorySetupForm({ initialValues, onSubmit, onValuesChange }: Stor
               label="Age range"
               value={values.ageRange}
               onChange={(e) => updateField('ageRange', e.target.value)}
-              options={ageGroupOptions}
+              options={getAgeGroupOptions()}
               hint="Guides reading level and sentence length."
             />
             <AppSelect
               label="Language"
               value={values.language}
               onChange={(e) => updateField('language', e.target.value)}
-              options={languageOptions}
+              options={getLanguageOptions()}
               hint="The language your students will read."
             />
           </div>

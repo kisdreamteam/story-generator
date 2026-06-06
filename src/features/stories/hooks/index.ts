@@ -18,6 +18,7 @@ export {
 export {
   useStoryLibraryFilters,
   type StoryLibraryFilters,
+  type StoryLibrarySort,
   type UseStoryLibraryFiltersResult,
 } from './useStoryLibraryFilters'
 export {

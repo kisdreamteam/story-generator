@@ -1,8 +1,30 @@
 # Story Generation API (placeholder)
 
-This folder is a **backend route placeholder** for AI story generation. There is no runnable server in this repo yet — the Vite React app remains frontend-only.
+This folder is a **backend route placeholder** for AI story generation. The Vite dev server exposes `POST /api/story-generation` via middleware and forwards requests to `handleStoryGenerationRequest.ts`.
 
-When you add a backend, implement a handler here (or copy this contract into your chosen platform).
+When you deploy a backend, copy the handler (or import this file) into your platform of choice.
+
+## Feature flag (frontend)
+
+Set in `.env`:
+
+```env
+VITE_GENERATION_MODE=ai
+VITE_AI_PROVIDER=openai
+VITE_AI_MODEL=gpt-4o-mini
+# Optional override:
+# VITE_STORY_GENERATION_API_URL=/api/story-generation
+```
+
+Default is `mock` — no backend call is made.
+
+## Server secret (never in the browser)
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+Use **`OPENAI_API_KEY`** without the `VITE_` prefix. Vite only exposes `VITE_*` variables to the client bundle.
 
 ## Suggested route
 
@@ -11,53 +33,55 @@ POST /api/story-generation
 Content-Type: application/json
 ```
 
-## Request body
+## Request body (create flow)
 
-`AiStoryGenerationApiRequest` — see `storyGeneration.contract.ts`:
+`StoryGenerationBackendRequest` — see `storyGeneration.contract.ts` and `handleStoryGenerationRequest.ts`:
 
 | Field | Description |
 |-------|-------------|
-| `prompt` | Built prompt sections (system, user, format, continuity, safety) |
-| `input` | Original `StoryGenerationInput` from the teacher setup form |
-| `requestedModel` | Model name (non-secret config from frontend env) |
-| `provider` | Provider id (non-secret config from frontend env) |
+| `setup` | Teacher `StorySetupInput` from the dashboard form |
+| `prompt` | `{ system, user }` strings built on the client |
+| `provider` | Provider id (non-secret, e.g. `openai`) |
+| `model` | Model name (non-secret, e.g. `gpt-4o-mini`) |
 
 ## Response body
 
-`AiStoryGenerationApiResponse`:
+`StoryGenerationBackendResponse`:
 
 | Field | Description |
 |-------|-------------|
 | `ok` | Whether generation succeeded |
-| `rawText` | Raw JSON/text from the AI provider (when `ok`) |
+| `rawText` | Raw JSON story from the AI provider (when `ok`) |
 | `errorMessage` | Error detail (when not `ok`) |
 | `provider` | Provider used on the server |
 | `model` | Model used on the server |
 
-## Server responsibilities (future)
+## Server responsibilities
 
-1. Validate the request body against the contract.
-2. Read the AI provider API key from **server-side** environment variables (never `VITE_*`).
-3. Call the AI provider with `prompt` + `input`.
-4. Return `AiStoryGenerationApiResponse` with `rawText` on success.
+1. Validate the request body (`validateStoryGenerationBackendRequest`).
+2. Read **`OPENAI_API_KEY`** from server environment variables.
+3. Call the AI provider with `prompt.system` + `prompt.user`.
+4. Return `rawText` for the frontend parser to validate and map to `GeneratedStory`.
 
 ## Frontend (current)
 
-- The browser **must never** call OpenAI or other AI providers directly.
-- `src/features/story-generation/services/requestAiStoryGeneration.ts` is a client wrapper that is **still mocked** and returns `"AI generation API is not connected yet."`
-- When the backend exists, enable the commented `fetch('POST /api/story-generation')` block in that service.
+- The browser **never** calls OpenAI directly.
+- `realAiGenerationAdapter` → `requestStoryGenerationFromBackend()` → `POST /api/story-generation`.
+- Raw responses are parsed by `parseAiStoryResponseToGeneratedStory()` — AI output is never trusted directly.
+- If the backend is unavailable in AI mode, the create flow falls back to mock generation and shows a warning toast.
 
 ## Contract sync
 
-If you change request/response shapes in the frontend, update `storyGeneration.contract.ts` to match (or extract a shared package later).
+If you change request/response shapes in the frontend, update:
+
+- `src/features/story-generation/api/storyGenerationBackend.types.ts`
+- `server/api/story-generation/storyGeneration.contract.ts`
+- `server/api/story-generation/handleStoryGenerationRequest.ts`
 
 ## Platform notes
 
-This layout maps cleanly to:
-
-- **Vercel** — `api/story-generation.ts` or App Router route handler
+- **Vite dev** — middleware in `vite.config.ts` (already wired)
+- **Vercel** — App Router route handler importing `handleStoryGenerationRequest`
 - **Netlify** — `netlify/functions/story-generation.ts`
 - **Express** — `app.post('/api/story-generation', ...)`
 - **Supabase Edge Functions** — `supabase/functions/story-generation/index.ts`
-
-The contract file can be imported or copied into whichever handler you choose.

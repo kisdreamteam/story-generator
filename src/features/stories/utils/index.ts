@@ -30,13 +30,32 @@ export {
 } from '@/features/story-generator/lib/story-project'
 export {
   buildStorySetupReviewSections,
+  getStorySetupFormDefaults,
   mapStorySetupFormToInput,
   mapStorySetupInputToFormValues,
   storySetupFormDefaults,
   storyPageCountOptions,
 } from './storySetupForm'
 export { createDraftProjectFromSetup } from './createDraftProjectFromSetup'
-export { buildDuplicatedStoryPlanProject, buildDuplicatedStoryProject } from './duplicateStoryProject'
+export { buildDuplicatedStoryPlanProject, buildDuplicatedStoryProject, buildStoryProjectCopyFromEdits } from './duplicateStoryProject'
+export {
+  deriveStoryLifecycleStatus,
+  getStoryLifecycleBadgeClasses,
+  getStoryLifecycleStatusLabel,
+  getStoryLifecycleStatusLabelForProject,
+  isStoryLifecycleStatus,
+  lifecycleStatusFromSupabaseRow,
+  resolveStoryLifecycleStatus,
+  toSupabaseProjectStatus,
+  withStoryLifecycleStatus,
+} from './storyLifecycleStatus'
+export {
+  assertStorySaveNotStale,
+  hasStorySaveConflict,
+  isStorySaveConflictError,
+  StorySaveConflictError,
+} from './storySaveConflict'
+export type { StorySaveBaseline } from './storySaveConflict'
 export {
   getCreateFlowStoryStatusLabel,
   getStoryStatusLabel,

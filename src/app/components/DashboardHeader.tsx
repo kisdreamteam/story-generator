@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom'
 import { AppButton } from '../../shared/components'
 import { StorageStatusIndicator } from '@/app/components/StorageStatusIndicator'
 import { useAuth } from '@/shared/lib/supabase/useAuth'
+import { useTranslation } from '@/shared/i18n'
 
 interface DashboardHeaderProps {
   onMenuOpen: () => void
 }
 
 export function DashboardHeader({ onMenuOpen }: DashboardHeaderProps) {
+  const { t } = useTranslation(['common', 'nav'])
   const { isAuthAvailable, isAuthenticated, isLoading, user, signOut } = useAuth()
 
   return (
@@ -20,13 +22,13 @@ export function DashboardHeader({ onMenuOpen }: DashboardHeaderProps) {
             size="sm"
             className="lg:hidden"
             onClick={onMenuOpen}
-            aria-label="Open navigation menu"
+            aria-label={t('common:openNavMenu')}
           >
-            Menu
+            {t('common:menu')}
           </AppButton>
           <div>
-            <p className="text-sm font-semibold text-stone-900">Teacher Dashboard</p>
-            <p className="text-xs text-stone-500">Plan and manage Nina & Nino stories</p>
+            <p className="text-sm font-semibold text-stone-900">{t('nav:teacherDashboard')}</p>
+            <p className="text-xs text-stone-500">{t('nav:teacherDashboardDescription')}</p>
           </div>
         </div>
 
@@ -35,7 +37,7 @@ export function DashboardHeader({ onMenuOpen }: DashboardHeaderProps) {
 
           <div className="flex items-center gap-2 text-xs">
             {isAuthAvailable && isLoading && (
-              <span className="text-stone-400">Checking session…</span>
+              <span className="text-stone-400">{t('common:checkingSession')}</span>
             )}
             {isAuthAvailable && !isLoading && isAuthenticated && (
               <>
@@ -50,7 +52,7 @@ export function DashboardHeader({ onMenuOpen }: DashboardHeaderProps) {
                     void signOut()
                   }}
                 >
-                  Sign out
+                  {t('common:signOut')}
                 </AppButton>
               </>
             )}
@@ -59,7 +61,7 @@ export function DashboardHeader({ onMenuOpen }: DashboardHeaderProps) {
                 to="/dashboard/settings"
                 className="font-medium text-brand-700 hover:text-brand-800"
               >
-                Sign in
+                {t('common:signIn')}
               </Link>
             )}
           </div>

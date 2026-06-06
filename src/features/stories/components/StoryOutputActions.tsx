@@ -4,7 +4,6 @@ interface StoryOutputActionsProps {
   onSaveStory: () => void
   onViewStory: () => void
   onEditStory: () => void
-  onExportStory: () => void
   onStartOver: () => void
   storySaved?: boolean
   isSavingStory?: boolean
@@ -15,7 +14,6 @@ export function StoryOutputActions({
   onSaveStory,
   onViewStory,
   onEditStory,
-  onExportStory,
   onStartOver,
   storySaved = false,
   isSavingStory = false,
@@ -62,16 +60,6 @@ export function StoryOutputActions({
           className="sm:w-auto"
         >
           Edit pages
-        </AppButton>
-        <AppButton
-          type="button"
-          variant="secondary"
-          onClick={onExportStory}
-          disabled
-          fullWidth
-          className="sm:w-auto"
-        >
-          Export (coming soon)
         </AppButton>
         <AppButton
           type="button"

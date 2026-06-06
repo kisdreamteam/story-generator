@@ -2,6 +2,7 @@ import type { GeneratedStory, StoryProject, StorySetupInput } from '../types'
 import { attachGeneratedStoryToProject } from './attachGeneratedStoryToProject'
 import { createDraftProjectFromSetup } from './createDraftProjectFromSetup'
 import { cloneGeneratedStory } from './storyEdit'
+import { withStoryLifecycleStatus } from './storyLifecycleStatus'
 
 const COPY_TITLE_SUFFIX = ' (Copy)'
 
@@ -57,27 +58,76 @@ export function buildDuplicatedStoryPlanProject(source: StoryProject): StoryProj
   const now = new Date().toISOString()
   const base = createDraftProjectFromSetup(setup)
 
-  return {
-    ...base,
-    title,
-    theme: source.theme,
-    ageRange: source.ageRange,
-    language: source.language,
-    pageCount: source.pageCount,
-    lessonGoal: source.lessonGoal,
-    vocabularyWords: [...source.vocabularyWords],
-    setting: source.setting,
-    characters: source.characters,
-    storyPages: [],
-    flashcards: [],
-    imagePrompts: [],
-    setup,
-    planReview: buildFreshPlanReview(setup),
-    generatedStory: undefined,
-    generationMetadata: undefined,
-    createdAt: base.createdAt,
-    updatedAt: now,
-  }
+  return withStoryLifecycleStatus(
+    {
+      ...base,
+      title,
+      theme: source.theme,
+      ageRange: source.ageRange,
+      language: source.language,
+      pageCount: source.pageCount,
+      lessonGoal: source.lessonGoal,
+      vocabularyWords: [...source.vocabularyWords],
+      setting: source.setting,
+      characters: source.characters,
+      storyPages: [],
+      flashcards: [],
+      imagePrompts: [],
+      setup,
+      planReview: buildFreshPlanReview(setup),
+      generatedStory: undefined,
+      generationMetadata: undefined,
+      createdAt: base.createdAt,
+      updatedAt: now,
+    },
+    'draft',
+  )
+}
+
+/**
+ * Build a new story project from an existing draft and edited generated content.
+ * Preserves the source story — assigns a new id, createdAt, and updatedAt on the copy.
+ */
+export function buildStoryProjectCopyFromEdits(
+  source: StoryProject,
+  editedStory: GeneratedStory,
+): StoryProject {
+  const now = new Date().toISOString()
+  const setup = resolveSourceSetup(source)
+  const title = duplicateTitle(editedStory.title || source.title)
+
+  const clonedGenerated = cloneGeneratedStory(editedStory)
+  clonedGenerated.title = title
+  clonedGenerated.generatedAt = now
+
+  const base = createDraftProjectFromSetup(setup)
+  const withGenerated = attachGeneratedStoryToProject(base, clonedGenerated)
+
+  return withStoryLifecycleStatus(
+    {
+      ...withGenerated,
+      title,
+      theme: source.theme,
+      ageRange: source.ageRange,
+      language: source.language,
+      pageCount: clonedGenerated.storyPages.length || source.pageCount,
+      lessonGoal: source.lessonGoal,
+      vocabularyWords: [...source.vocabularyWords],
+      setting: source.setting,
+      characters: source.characters,
+      storyPages: cloneValue(clonedGenerated.storyPages),
+      flashcards: cloneValue(clonedGenerated.flashcards),
+      imagePrompts: cloneValue(clonedGenerated.imagePrompts),
+      setup,
+      planReview: buildFreshPlanReview(setup),
+      generatedStory: clonedGenerated,
+      generationMetadata: undefined,
+      version: 1,
+      createdAt: base.createdAt,
+      updatedAt: now,
+    },
+    'edited',
+  )
 }
 
 /**
@@ -99,25 +149,28 @@ export function buildDuplicatedStoryProject(
   const base = createDraftProjectFromSetup(setup)
   const withGenerated = attachGeneratedStoryToProject(base, clonedGenerated)
 
-  return {
-    ...withGenerated,
-    title,
-    theme: source.theme,
-    ageRange: source.ageRange,
-    language: source.language,
-    pageCount: clonedGenerated.storyPages.length || source.pageCount,
-    lessonGoal: source.lessonGoal,
-    vocabularyWords: [...source.vocabularyWords],
-    setting: source.setting,
-    characters: source.characters,
-    storyPages: cloneValue(clonedGenerated.storyPages),
-    flashcards: cloneValue(clonedGenerated.flashcards),
-    imagePrompts: cloneValue(clonedGenerated.imagePrompts),
-    setup,
-    planReview: buildFreshPlanReview(setup),
-    generatedStory: clonedGenerated,
-    generationMetadata: undefined,
-    createdAt: base.createdAt,
-    updatedAt: now,
-  }
+  return withStoryLifecycleStatus(
+    {
+      ...withGenerated,
+      title,
+      theme: source.theme,
+      ageRange: source.ageRange,
+      language: source.language,
+      pageCount: clonedGenerated.storyPages.length || source.pageCount,
+      lessonGoal: source.lessonGoal,
+      vocabularyWords: [...source.vocabularyWords],
+      setting: source.setting,
+      characters: source.characters,
+      storyPages: cloneValue(clonedGenerated.storyPages),
+      flashcards: cloneValue(clonedGenerated.flashcards),
+      imagePrompts: cloneValue(clonedGenerated.imagePrompts),
+      setup,
+      planReview: buildFreshPlanReview(setup),
+      generatedStory: clonedGenerated,
+      generationMetadata: undefined,
+      createdAt: base.createdAt,
+      updatedAt: now,
+    },
+    'generated',
+  )
 }

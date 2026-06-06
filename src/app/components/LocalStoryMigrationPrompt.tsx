@@ -1,5 +1,4 @@
-import { AppButton, LoadingCard } from '@/shared/components'
-import { migrationLoadingCopy } from '@/shared/components/loading'
+import { AppButton, AppErrorState, AppLoadingState } from '@/shared/components'
 import { useLocalStoryMigration } from '@/features/story-generator/hooks/useLocalStoryMigration'
 import { formatTeacherFacingMigrationCopyFailure } from '@/features/story-generator/lib/story-route-guards'
 import { storyFeedback } from '@/shared/feedback'
@@ -87,16 +86,7 @@ export function LocalStoryMigrationPrompt({
         </>
       )}
 
-      {uiState === 'migrating' && (
-        <LoadingCard
-          variant="compact"
-          showAction={false}
-          title={`Copying your ${storyLabel} to your account…`}
-          description={migrationLoadingCopy.description}
-          ariaLabel={migrationLoadingCopy.statusLabel}
-          className="border-amber-100 bg-amber-50/30"
-        />
-      )}
+      {uiState === 'migrating' && <AppLoadingState kind="migration" className="border-0 bg-transparent p-0" />}
 
       {uiState === 'success' && lastResult && (
         <>
@@ -118,10 +108,12 @@ export function LocalStoryMigrationPrompt({
 
       {uiState === 'partial_success' && lastResult && (
         <>
-          <p className="text-sm font-medium text-amber-900" role="status">
-            {lastResult.copied} {lastResult.copied === 1 ? 'story' : 'stories'} copied.{' '}
-            {lastResult.failed.length} could not be copied.
-          </p>
+          <AppErrorState
+            kind="migration-partial"
+            copiedCount={lastResult.copied}
+            failedCount={lastResult.failed.length}
+            variant="inline"
+          />
           <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-stone-600">
             {lastResult.failed.map((failure) => (
               <li key={failure.localId} className="break-words">
@@ -147,9 +139,7 @@ export function LocalStoryMigrationPrompt({
 
       {uiState === 'failed' && lastResult && (
         <>
-          <p className="text-sm font-medium text-red-700" role="alert">
-            Could not copy your stories. Please try again.
-          </p>
+          <AppErrorState kind="migration-failed" variant="inline" />
           <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-stone-600">
             {lastResult.failed.map((failure) => (
               <li key={failure.localId} className="break-words">

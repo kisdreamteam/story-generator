@@ -1,3 +1,25 @@
+import { runGenerateStoryPipeline } from '@/features/story-generation/generateStoryPipeline'
+import {
+  buildRecoveryCheckpoint,
+  buildRecoveryCheckpointFromResult,
+  clearGenerationRecoverySession,
+  createGenerationSessionId,
+  getRecoverableGenerationSession,
+  getInterruptedGenerationSession,
+  mapPipelineStatusToSessionStatus,
+  persistGenerationSession,
+  resumeGenerateStoryPipeline,
+  retryGenerateStoryPipelineStep,
+} from '@/features/story-generation/generationRecovery'
+import { createGenerationProgress } from '@/features/story-generation/generationProgress'
+import { readPersistedGenerationSession } from '@/features/story-generation/generationSessionStorage'
+import type { GenerationPipelineResult, GenerationStage } from '@/features/story-generation/generationTypes'
+import type { PersistedGenerationSession } from '@/features/story-generation/generationSessionStorage'
+import {
+  notifyGenerationRunComplete,
+  notifyGenerationRunStart,
+  notifyGenerationStageProgress,
+} from '@/features/story-generation/lib/generationProgressReporter'
 import {
   GenerationRecoveryError,
   getPartialAIGenerationOutput,
@@ -5,9 +27,12 @@ import {
   withGenerationTimeout,
   type PartialAIGenerationOutput,
 } from '@/shared/ai/recovery'
-import { buildAIStoryInput, buildStoryGenerationMetadataFromSetup, mockAIStoryProvider, resolveAIStoryProvider, type AIStoryProvider } from '@/shared/ai'
-import { GenerationMode, getGenerationMode } from '@/shared/config'
-import './registerAIProviders'
+import {
+  getMockAiGenerationAdapter,
+  resolveAiGenerationAdapter,
+  type AiGenerationAdapter,
+} from '@/features/story-generation/adapters'
+import { GenerationMode, getGenerationConfig } from '@/shared/config'
 import { getActivePromptVersion } from '../../prompts/promptVersions'
 import {
   cancelActiveStoryGeneration,
@@ -16,7 +41,7 @@ import {
   retryStoryGeneration,
   type EnqueueStoryGenerationOptions,
 } from './runtime/generationQueue'
-import { isGenerationAbortedError, throwIfAborted } from './runtime/generationAbort'
+import { GenerationAbortedError, isGenerationAbortedError, throwIfAborted } from './runtime/generationAbort'
 import type { GeneratedStoryOutput, StoryGenerationInput } from './types'
 import {
   canGenerate,
@@ -24,19 +49,19 @@ import {
   recordGeneration,
   type GenerationProviderKind,
 } from '../usage'
+import { buildStoryGenerationMetadataFromSetup } from '@/shared/ai'
 import { assertValidGeneratedStoryOutput } from './validateGeneratedStoryOutput'
-import { mapAIResultToGeneratedStoryOutput } from './adapters/aiStoryOutputMapping'
 import { buildPartialGeneratedStoryOutput } from './recovery/partialGenerationOutput'
 import { productAnalytics } from '@/shared/lib/analytics'
 
-function resolveProviderKind(mode: GenerationMode, provider: AIStoryProvider): GenerationProviderKind {
-  if (provider.id === 'openai') return 'openai'
+function resolveProviderKind(mode: GenerationMode, adapter: AiGenerationAdapter): GenerationProviderKind {
+  if (adapter.kind === 'real') return 'openai'
   if (mode === GenerationMode.FIXTURE) return 'fixture'
   return 'mock'
 }
 
-function resolveGenerationModel(provider: AIStoryProvider): string | null {
-  if (provider.id !== 'openai') {
+function resolveGenerationModel(adapter: AiGenerationAdapter): string | null {
+  if (adapter.kind !== 'real') {
     return null
   }
 
@@ -48,13 +73,13 @@ function attachGenerationMetadata(
   output: GeneratedStoryOutput,
   input: StoryGenerationInput,
   providerKind: GenerationProviderKind,
-  provider: AIStoryProvider,
+  adapter: AiGenerationAdapter,
 ): GeneratedStoryOutput {
   return {
     ...output,
     generationMetadata: buildStoryGenerationMetadataFromSetup(input.setup, {
       provider: providerKind,
-      model: resolveGenerationModel(provider),
+      model: resolveGenerationModel(adapter),
       generationVersion: getActivePromptVersion(),
       timestamp: output.generatedAt,
     }),
@@ -85,72 +110,197 @@ function wrapProviderFailure(
   )
 }
 
-async function runWithProvider(
+export type StoryGenerationRecoveryMode = 'fresh' | 'resume' | 'retry'
+
+export interface RunStoryGenerationOptions {
+  recovery?: StoryGenerationRecoveryMode
+  retryStage?: GenerationStage
+}
+
+async function runPipelineWithRecovery(
   input: StoryGenerationInput,
-  provider: AIStoryProvider,
+  adapter: AiGenerationAdapter,
   signal: AbortSignal,
+  runOptions: RunStoryGenerationOptions = {},
+): Promise<GenerationPipelineResult> {
+  const pipelineInput = { setup: input.setup }
+  const pipelineOptions = {
+    adapter,
+    signal,
+    onProgress: notifyGenerationStageProgress,
+    onCheckpoint: (checkpoint: Parameters<typeof persistGenerationSession>[1]) => {
+      persistGenerationSession(input.setup, checkpoint, 'running')
+    },
+  }
+
+  if (runOptions.recovery === 'resume') {
+    const session = getRecoverableGenerationSession(input.setup)
+
+    if (session) {
+      return resumeGenerateStoryPipeline(pipelineInput, pipelineOptions, session)
+    }
+  }
+
+  if (runOptions.recovery === 'retry') {
+    const session = getRecoverableGenerationSession(input.setup)
+
+    if (session) {
+      return retryGenerateStoryPipelineStep(
+        pipelineInput,
+        pipelineOptions,
+        session,
+        runOptions.retryStage,
+      )
+    }
+  }
+
+  const sessionId = createGenerationSessionId()
+
+  return runGenerateStoryPipeline(pipelineInput, {
+    ...pipelineOptions,
+    recovery: {
+      sessionId,
+      checkpoint: buildRecoveryCheckpoint(sessionId, {
+        storyCore: null,
+        flashcards: [],
+        imagePrompts: [],
+        progress: createGenerationProgress(),
+        errors: [],
+        failedStage: null,
+      }),
+      mode: 'fresh',
+    },
+  })
+}
+
+function persistPipelineRecoveryState(
+  input: StoryGenerationInput,
+  result: GenerationPipelineResult,
+  interrupted = false,
+): void {
+  const existing = readPersistedGenerationSession()
+  const sessionId = existing?.sessionId ?? createGenerationSessionId()
+
+  persistGenerationSession(
+    input.setup,
+    buildRecoveryCheckpointFromResult(sessionId, result),
+    mapPipelineStatusToSessionStatus(result, interrupted),
+    existing,
+  )
+}
+
+function finalizePipelineResult(
+  input: StoryGenerationInput,
+  result: GenerationPipelineResult,
+  interrupted = false,
+): GeneratedStoryOutput {
+  notifyGenerationRunComplete(result)
+
+  if (result.status === 'success') {
+    clearGenerationRecoverySession()
+  } else {
+    persistPipelineRecoveryState(input, result, interrupted)
+  }
+
+  if (!result.output) {
+    const partialOutput = toPartialAIGenerationOutput(result)
+
+    if (result.errors.some((error) => error.code === 'ABORTED')) {
+      wrapProviderFailure(new GenerationAbortedError(), partialOutput)
+    }
+
+    wrapProviderFailure(
+      new Error(result.errors[0]?.message ?? 'Story generation failed.'),
+      partialOutput,
+    )
+  }
+
+  if (result.status === 'partial') {
+    wrapProviderFailure(
+      new Error(result.errors.map((error) => error.message).join('; ')),
+      toPartialAIGenerationOutput(result),
+    )
+  }
+
+  assertValidGeneratedStoryOutput(result.output)
+
+  return result.output
+}
+
+async function runWithAdapter(
+  input: StoryGenerationInput,
+  adapter: AiGenerationAdapter,
+  signal: AbortSignal,
+  runOptions: RunStoryGenerationOptions = {},
 ): Promise<GeneratedStoryOutput> {
   throwIfAborted(signal)
-
-  const aiInput = buildAIStoryInput(input.setup)
-  const validation = provider.validateInput(aiInput)
-
-  if (!validation.isValid) {
-    throw new Error(validation.errors.join('; '))
-  }
-
-  const providerOptions = { signal }
-  let storyResult
+  notifyGenerationRunStart()
 
   try {
-    storyResult = await provider.generateStory(aiInput, providerOptions)
+    const result = await runPipelineWithRecovery(input, adapter, signal, runOptions)
+    throwIfAborted(signal)
+    return finalizePipelineResult(input, result)
   } catch (error) {
-    wrapProviderFailure(error, null)
+    if (isGenerationAbortedError(error)) {
+      const session = getInterruptedGenerationSession(input.setup)
+
+      if (session) {
+        persistGenerationSession(
+          input.setup,
+          {
+            sessionId: session.sessionId,
+            storyCore: session.storyCore,
+            flashcards: session.flashcards,
+            imagePrompts: session.imagePrompts,
+            progress: session.progress,
+            errors: session.errors,
+            failedStage: session.failedStage,
+          },
+          'interrupted',
+          session,
+        )
+      }
+    }
+
+    throw error
+  }
+}
+
+function toPartialAIGenerationOutput(
+  result: Awaited<ReturnType<typeof runGenerateStoryPipeline>>,
+): PartialAIGenerationOutput | null {
+  if (!result.partial.story) {
+    return null
   }
 
-  throwIfAborted(signal)
+  const failedStage = result.errors[0]?.stage
 
-  const partialAfterStory: PartialAIGenerationOutput = {
-    story: storyResult.story,
-    flashcards: storyResult.flashcards,
-    imagePrompts: [],
-    stage: 'story',
+  return {
+    story: result.partial.story,
+    flashcards: result.partial.flashcards,
+    imagePrompts: result.partial.imagePrompts,
+    stage: failedStage === 'imagePrompts' ? 'images' : 'story',
   }
-
-  let imagePrompts
-
-  try {
-    imagePrompts = await provider.generateImages(aiInput, storyResult.story, providerOptions)
-  } catch (error) {
-    wrapProviderFailure(error, partialAfterStory)
-  }
-
-  throwIfAborted(signal)
-
-  const output = mapAIResultToGeneratedStoryOutput(storyResult.story, storyResult.flashcards, imagePrompts)
-
-  assertValidGeneratedStoryOutput(output)
-
-  return output
 }
 
 async function generateWithOptionalAiFallback(
   input: StoryGenerationInput,
-  provider: AIStoryProvider,
+  adapter: AiGenerationAdapter,
   signal: AbortSignal,
   mode: GenerationMode,
-): Promise<{ output: GeneratedStoryOutput; provider: AIStoryProvider }> {
+  runOptions: RunStoryGenerationOptions = {},
+): Promise<{ output: GeneratedStoryOutput; adapter: AiGenerationAdapter }> {
   if (mode !== GenerationMode.AI) {
     return {
-      output: await runWithProvider(input, provider, signal),
-      provider,
+      output: await runWithAdapter(input, adapter, signal, runOptions),
+      adapter,
     }
   }
 
   try {
     return {
-      output: await runWithProvider(input, provider, signal),
-      provider,
+      output: await runWithAdapter(input, adapter, signal, runOptions),
+      adapter,
     }
   } catch (error) {
     if (isGenerationAbortedError(error) || isGenerationRecoveryError(error)) {
@@ -158,13 +308,15 @@ async function generateWithOptionalAiFallback(
     }
 
     console.warn(
-      '[Story Generation] AI provider failed; using mock fallback.',
+      '[Story Generation] AI adapter failed; using mock fallback.',
       error instanceof Error ? error.message : error,
     )
 
+    const mockAdapter = getMockAiGenerationAdapter()
+
     return {
-      output: await runWithProvider(input, mockAIStoryProvider, signal),
-      provider: mockAIStoryProvider,
+      output: await runWithAdapter(input, mockAdapter, signal, runOptions),
+      adapter: mockAdapter,
     }
   }
 }
@@ -172,6 +324,7 @@ async function generateWithOptionalAiFallback(
 async function executeStoryGeneration(
   input: StoryGenerationInput,
   signal: AbortSignal,
+  runOptions: RunStoryGenerationOptions = {},
 ): Promise<GeneratedStoryOutput> {
   throwIfAborted(signal)
 
@@ -181,17 +334,17 @@ async function executeStoryGeneration(
     throw new Error(generationCheck.reason ?? 'Story generation is not allowed right now.')
   }
 
-  const mode = getGenerationMode()
-  const provider = await resolveAIStoryProvider()
+  const mode = getGenerationConfig().mode
+  const adapter = await resolveAiGenerationAdapter()
 
-  const { output, provider: usedProvider } = await withGenerationTimeout(
+  const { output, adapter: usedAdapter } = await withGenerationTimeout(
     (timeoutSignal) =>
-      generateWithOptionalAiFallback(input, provider, timeoutSignal, mode),
+      generateWithOptionalAiFallback(input, adapter, timeoutSignal, mode, runOptions),
     { parentSignal: signal },
   )
 
   recordGeneration({
-    provider: resolveProviderKind(mode, usedProvider),
+    provider: resolveProviderKind(mode, usedAdapter),
     generationMode: mode,
     estimatedTokens: estimateTokenUsage(input, output),
     input,
@@ -202,10 +355,10 @@ async function executeStoryGeneration(
     pageCount: output.storyPages.length,
     totalWordCount: output.totalWordCount,
     source: 'create_flow',
-    provider: resolveProviderKind(mode, usedProvider),
+    provider: resolveProviderKind(mode, usedAdapter),
   })
 
-  return attachGenerationMetadata(output, input, resolveProviderKind(mode, usedProvider), usedProvider)
+  return attachGenerationMetadata(output, input, resolveProviderKind(mode, usedAdapter), usedAdapter)
 }
 
 /** Extract recoverable partial output from a failed generation attempt. */
@@ -233,11 +386,69 @@ export async function retryStoryGenerationJob(jobId?: string): Promise<Generated
   return retryActiveStoryGeneration()
 }
 
+/** Resume a persisted generation session without restarting completed stages. */
+export async function resumeStoryGeneration(
+  input: StoryGenerationInput,
+  options?: EnqueueStoryGenerationOptions,
+): Promise<GeneratedStoryOutput> {
+  return enqueueStoryGeneration(
+    input,
+    (jobInput, signal) => executeStoryGeneration(jobInput, signal, { recovery: 'resume' }),
+    options,
+  )
+}
+
+/** Retry the failed pipeline step and continue from that point. */
+export async function retryFailedStoryGenerationStep(
+  input: StoryGenerationInput,
+  retryStage?: GenerationStage,
+  options?: EnqueueStoryGenerationOptions,
+): Promise<GeneratedStoryOutput> {
+  return enqueueStoryGeneration(
+    input,
+    (jobInput, signal) =>
+      executeStoryGeneration(jobInput, signal, { recovery: 'retry', retryStage }),
+    options,
+  )
+}
+
+/** Recover an interrupted generation session when one exists for the same setup. */
+export async function recoverInterruptedStoryGeneration(
+  input: StoryGenerationInput,
+  options?: EnqueueStoryGenerationOptions,
+): Promise<GeneratedStoryOutput | null> {
+  const session = getInterruptedGenerationSession(input.setup)
+
+  if (!session) {
+    return null
+  }
+
+  return resumeStoryGeneration(input, options)
+}
+
+/** Read the recoverable persisted generation session for a setup, if any. */
+export function getRecoverableStoryGenerationSession(
+  input: StoryGenerationInput,
+): PersistedGenerationSession | null {
+  return getRecoverableGenerationSession(input.setup)
+}
+
+/** Clear the persisted generation recovery session. */
+export function clearStoryGenerationRecoverySession(): void {
+  clearGenerationRecoverySession()
+}
+
 /** Orchestrates story generation through the queue and active provider. UI should call this only. */
 export async function generateStory(
   input: StoryGenerationInput,
   options?: EnqueueStoryGenerationOptions,
 ): Promise<GeneratedStoryOutput> {
+  const interruptedSession = getInterruptedGenerationSession(input.setup)
+
+  if (interruptedSession) {
+    return resumeStoryGeneration(input, options)
+  }
+
   return enqueueStoryGeneration(input, executeStoryGeneration, options)
 }
 

@@ -1,4 +1,5 @@
 import type { GeneratedStory, StoryGenerationMetadata, StoryProject } from '../types'
+import { withStoryLifecycleStatus } from './storyLifecycleStatus'
 
 /** Merge generated output into a StoryProject before saving to localStorage. */
 export function attachGeneratedStoryToProject(
@@ -6,7 +7,7 @@ export function attachGeneratedStoryToProject(
   generatedStory: GeneratedStory,
   generationMetadata?: StoryGenerationMetadata,
 ): StoryProject {
-  return {
+  const merged: StoryProject = {
     ...project,
     title: generatedStory.title || project.title,
     pageCount: generatedStory.storyPages.length || project.pageCount,
@@ -17,4 +18,10 @@ export function attachGeneratedStoryToProject(
     generationMetadata: generationMetadata ?? project.generationMetadata,
     updatedAt: new Date().toISOString(),
   }
+
+  if (project.lifecycleStatus === 'completed') {
+    return merged
+  }
+
+  return withStoryLifecycleStatus(merged, 'generated')
 }

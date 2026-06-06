@@ -1,0 +1,16 @@
+{
+  "homeTitle": "Dashboard",
+  "homeDescription": "Welcome back. Start a new story, review your work, or adjust settings.",
+  "createStoryTitle": "Create a story",
+  "createStoryDescription": "Set up a new Nina & Nino adventure for your class.",
+  "createStoryAction": "Go to Create Story",
+  "storiesTitle": "Your stories",
+  "storiesDescription": "Browse saved projects and open recent work.",
+  "storiesAction": "View Stories",
+  "classroomsTitle": "Your classrooms",
+  "classroomsDescription": "Prepare class groups for shared story access — no student accounts needed yet.",
+  "classroomsAction": "View Classrooms",
+  "settingsTitle": "Settings",
+  "settingsDescription": "Classroom defaults and app preferences will live here.",
+  "settingsAction": "Open Settings"
+}

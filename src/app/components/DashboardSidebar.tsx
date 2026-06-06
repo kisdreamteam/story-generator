@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom'
 import { dashboardNavItems } from '../config/dashboardNav'
+import { useTranslation } from '@/shared/i18n'
 
 interface DashboardSidebarProps {
   isOpen: boolean
@@ -7,13 +8,15 @@ interface DashboardSidebarProps {
 }
 
 export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
+  const { t } = useTranslation(['common', 'nav'])
+
   return (
     <>
       {isOpen && (
         <button
           type="button"
           className="fixed inset-0 z-40 bg-stone-900/40 lg:hidden"
-          aria-label="Close navigation menu"
+          aria-label={t('common:closeNavMenu')}
           onClick={onClose}
         />
       )}
@@ -26,8 +29,8 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
       >
         <div className="border-b border-stone-200 px-5 py-5">
           <Link to="/dashboard" className="block" onClick={onClose}>
-            <span className="text-lg font-bold text-brand-600">Nina & Nino</span>
-            <span className="mt-0.5 block text-xs text-stone-500">Story Creator</span>
+            <span className="text-lg font-bold text-brand-600">{t('common:appName')}</span>
+            <span className="mt-0.5 block text-xs text-stone-500">{t('common:appTagline')}</span>
           </Link>
         </div>
 
@@ -47,7 +50,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                 ].join(' ')
               }
             >
-              {item.label}
+              {t(`nav:${item.labelKey}`)}
             </NavLink>
           ))}
         </nav>
@@ -58,7 +61,14 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
             className="text-sm text-stone-500 transition-colors hover:text-brand-600"
             onClick={onClose}
           >
-            Back to home
+            {t('common:backToHome')}
+          </Link>
+          <Link
+            to="/dashboard/dev/qa"
+            className="mt-3 block text-xs font-medium text-amber-800 transition-colors hover:text-amber-950"
+            onClick={onClose}
+          >
+            Dev · QA checklist
           </Link>
         </div>
       </aside>

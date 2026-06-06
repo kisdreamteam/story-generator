@@ -1,5 +1,6 @@
 import type { GeneratedStory, StoryProject } from '../types/story-generator.types'
-import { getStoryStatusLabelForProject } from '@/features/stories/utils/storyStatus'
+import { getStoryLifecycleStatusLabelForProject } from '@/features/stories/utils/storyLifecycleStatus'
+import { normalizeGeneratedStoryPageImages } from '@/features/story-images/lib/normalizeStoryPageImage'
 
 export function hasGeneratedStoryContent(project: StoryProject): boolean {
   return Boolean(project.generatedStory) || project.storyPages.length > 0
@@ -8,7 +9,7 @@ export function hasGeneratedStoryContent(project: StoryProject): boolean {
 /** Use saved generatedStory or rebuild a preview object from stored pages. */
 export function generatedStoryFromProject(project: StoryProject): GeneratedStory | null {
   if (project.generatedStory) {
-    return project.generatedStory
+    return normalizeGeneratedStoryPageImages(project.generatedStory)
   }
 
   if (project.storyPages.length === 0) {
@@ -17,7 +18,7 @@ export function generatedStoryFromProject(project: StoryProject): GeneratedStory
 
   const totalWordCount = project.storyPages.reduce((sum, page) => sum + page.wordCount, 0)
 
-  return {
+  return normalizeGeneratedStoryPageImages({
     title: project.title,
     summary: project.lessonGoal || project.theme,
     storyPages: project.storyPages,
@@ -25,7 +26,7 @@ export function generatedStoryFromProject(project: StoryProject): GeneratedStory
     imagePrompts: project.imagePrompts,
     totalWordCount,
     generatedAt: project.updatedAt,
-  }
+  })
 }
 
 /** Status badge text for a story card. Pass `mockSample` for the demo project. */
@@ -33,7 +34,7 @@ export function getStoryProjectStatusLabel(
   project: StoryProject,
   options?: { mockSample?: boolean },
 ): string {
-  return getStoryStatusLabelForProject(project, options)
+  return getStoryLifecycleStatusLabelForProject(project, options)
 }
 
 /** Primary card action label for a local saved project. */

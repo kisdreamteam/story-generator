@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AppButton, ErrorState, LoadingStoryPage, PageHeader } from '@/shared/components'
+import { AppButton, AppEmptyState, AppErrorState, AppLoadingState, PageHeader } from '@/shared/components'
 import type {
   StoryGeneratedLoadStatus,
   StoryLoadErrorPresentation,
 } from '@/features/story-generator/lib/story-route-guards'
-import { StoryEmptyState } from './StoryEmptyState'
 
 interface StoryDetailLoadGuardProps {
   status: StoryGeneratedLoadStatus
@@ -35,7 +34,7 @@ export function StoryDetailLoadGuard({
       <>
         <PageHeader title={pageTitle} description={pageDescription} />
         <div className="mx-auto max-w-2xl">
-          <LoadingStoryPage variant="detail" />
+          <AppLoadingState kind="story-detail" />
         </div>
       </>
     )
@@ -56,13 +55,14 @@ export function StoryDetailLoadGuard({
 
       <div className="mx-auto max-w-2xl">
         {status === 'error' ? (
-          <ErrorState title={copy.title} description={copy.description}>
+          <AppErrorState presentation={copy}>
             <AppButton type="button" onClick={goToStories}>
               Back to stories
             </AppButton>
-          </ErrorState>
+          </AppErrorState>
         ) : (
-          <StoryEmptyState
+          <AppEmptyState
+            kind="story-not-found"
             title={copy.title}
             description={copy.description}
             actionLabel="Back to stories"

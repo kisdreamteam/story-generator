@@ -1,10 +1,13 @@
+import { useCallback } from 'react'
 import { AppButton, ErrorState, SaveStatusIndicator } from '@/shared/components'
 import type { SaveStatus } from '@/shared/lib/autosave/saveStatus'
 import {
   useGenerationFailureState,
   useGenerationStatus,
   useIsGenerating,
+  useStoryWorkflowActions,
 } from '@/features/story-generator'
+import { useImagePromptReview } from '@/features/story-images'
 import {
   StoryEmptyState,
   StoryGenerationLoading,
@@ -29,7 +32,6 @@ interface CreateStoryGeneratedStepProps {
   onSaveStory: () => void
   onViewStory: () => void
   onEditStory: () => void
-  onExportStory: () => void
   onStartOver: () => void
   onBackToReview: () => void
   onRetryGeneration?: () => void
@@ -50,7 +52,6 @@ export function CreateStoryGeneratedStep({
   onSaveStory,
   onViewStory,
   onEditStory,
-  onExportStory,
   onStartOver,
   onBackToReview,
   onRetryGeneration,
@@ -61,6 +62,19 @@ export function CreateStoryGeneratedStep({
   const isGenerating = useIsGenerating()
   const generationStatus = useGenerationStatus()
   const failureState = useGenerationFailureState()
+  const { setGeneratedStory } = useStoryWorkflowActions()
+
+  const handlePromptsChange = useCallback(
+    (prompts: GeneratedStory['imagePrompts']) => {
+      if (!generatedStory) return
+      setGeneratedStory({ ...generatedStory, imagePrompts: prompts })
+    },
+    [generatedStory, setGeneratedStory],
+  )
+
+  const imagePromptReview = useImagePromptReview(generatedStory, {
+    onPromptsChange: handlePromptsChange,
+  })
 
   const showRecovery =
     isGenerating ||
@@ -77,7 +91,7 @@ export function CreateStoryGeneratedStep({
   const showPartialPreview = Boolean(generatedStory) && failureState.hasPartialContent
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 px-1 sm:px-0">
+    <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -143,7 +157,6 @@ export function CreateStoryGeneratedStep({
             onSaveStory={onSaveStory}
             onViewStory={onViewStory}
             onEditStory={onEditStory}
-            onExportStory={onExportStory}
             onStartOver={onStartOver}
             storySaved={storySaved}
             isSavingStory={isSavingStory}
@@ -153,6 +166,16 @@ export function CreateStoryGeneratedStep({
             story={generatedStory}
             showUnsavedHint={!storySaved}
             savedToLibrary={storySaved}
+            imagePromptReview={{
+              prompts: imagePromptReview.prompts,
+              originalPrompts: imagePromptReview.baseline,
+              onPromptChange: imagePromptReview.updatePrompt,
+              onResetPage: imagePromptReview.resetPage,
+              onResetAll: imagePromptReview.resetAll,
+              isPageModified: imagePromptReview.isPageModified,
+              isDirty: imagePromptReview.isDirty,
+              disabled: isBusy,
+            }}
           />
         </>
       ) : (

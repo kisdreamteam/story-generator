@@ -35,6 +35,10 @@ export interface StoryMetadataProps {
 
 export interface StoryPagesProps {
   pages: StoryPage[]
+  imagePrompts?: StoryImagePrompt[]
+  showImageActions?: boolean
+  isPageGenerating?: (pageNumber: number) => boolean
+  onRegeneratePageImage?: (pageNumber: number) => void
 }
 
 export interface StoryFlashcardsProps {

@@ -72,7 +72,7 @@ export function StorySetupReview({
   const statusBadgeLabel = draftSaved ? STORY_PLAN_SAVED_LABEL : getStoryStatusLabel('setup-draft')
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 px-1 sm:px-0">
+    <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
       <SectionCard
         title="Review your story plan"
         description="Check that everything looks right before you save or generate."

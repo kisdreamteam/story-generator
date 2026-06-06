@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AppButton, ErrorState, LoadingDashboard, PageHeader, SectionCard } from '@/shared/components'
+import { AppButton, AppEmptyState, AppErrorState, AppLoadingState, PageHeader, SectionCard } from '@/shared/components'
 import { DashboardLibraryEmptyState } from '@/app/components/DashboardLibraryEmptyState'
 import { getStoryDrafts } from '@/features/story-generator'
 import {
@@ -15,6 +15,7 @@ import { StorageStatusIndicator } from '@/app/components/StorageStatusIndicator'
 import { LocalStoryMigrationPrompt } from '@/app/components/LocalStoryMigrationPrompt'
 import { useAuth } from '@/shared/lib/supabase/useAuth'
 import {
+  getStoryLibrarySortDescription,
   getStoryProjectActionLabel,
   hasGeneratedStoryContent,
   mockGeneratedStory,
@@ -27,12 +28,6 @@ import {
 } from '@/features/stories'
 
 const STORY_PREVIEW_ID = 'story-preview'
-
-function sortByUpdatedAtNewestFirst(stories: StoryProject[]): StoryProject[] {
-  return [...stories].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  )
-}
 
 function storyCountLabel(count: number): string {
   if (count === 1) return '1 story'
@@ -92,12 +87,13 @@ export function StoriesPage() {
   const deleteInFlightRef = useRef(false)
   const duplicateInFlightRef = useRef(false)
 
-  const { filters, debouncedFilters, setFilter, clearFilters, hasActiveFilters } =
+  const { filters, debouncedFilters, sort, setFilter, setSort, clearFilters, hasActiveFilters, hasActiveQuery } =
     useStoryLibraryFilters()
 
-  const { filteredStories, totalCount, filteredCount, isFiltered } = useFilteredStoryProjects(
+  const { filteredStories, totalCount, filteredCount } = useFilteredStoryProjects(
     userStories,
     debouncedFilters,
+    sort,
   )
 
   const { finishedStories, storyPlans } = useMemo(
@@ -111,7 +107,7 @@ export function StoriesPage() {
 
     try {
       const drafts = await getStoryDrafts()
-      setUserStories(sortByUpdatedAtNewestFirst(drafts))
+      setUserStories(drafts)
     } catch (error) {
       setUserStories([])
       setLoadError(classifyStoryLoadError(error))
@@ -205,12 +201,13 @@ export function StoriesPage() {
   const isPageLoading = isLoading || isAuthLoading
   const hasUserStories = userStories.length > 0
   const hasVisibleStories = filteredStories.length > 0
+  const sortDescription = getStoryLibrarySortDescription(sort)
   const listDescription = isPageLoading
     ? 'Loading your stories…'
     : hasUserStories
-      ? isFiltered
-        ? `${filteredCount} of ${storyCountLabel(totalCount)} match your filters — newest first.`
-        : `${storyCountLabel(totalCount)} — newest first. Open a story to read or edit it.`
+      ? hasActiveQuery
+        ? `${filteredCount} of ${storyCountLabel(totalCount)} match — sorted ${sortDescription}.`
+        : `${storyCountLabel(totalCount)} — sorted ${sortDescription}. Open a story to read or edit it.`
       : 'Your story plans and finished stories will show up here.'
 
   return (
@@ -233,46 +230,43 @@ export function StoriesPage() {
 
           {loadError && (
             <div className="mb-4">
-              <ErrorState title={loadError.title} description={loadError.description}>
+              <AppErrorState kind="storage-load-failed" presentation={loadError}>
                 <AppButton type="button" variant="secondary" onClick={() => void refreshRecentStories()}>
                   Try again
                 </AppButton>
-              </ErrorState>
+              </AppErrorState>
             </div>
           )}
 
           {actionError && !loadError && (
             <div className="mb-4">
-              <ErrorState title={actionError.title} description={actionError.description}>
+              <AppErrorState presentation={actionError}>
                 <AppButton type="button" variant="secondary" onClick={() => setActionError(null)}>
                   Dismiss
                 </AppButton>
-              </ErrorState>
+              </AppErrorState>
             </div>
           )}
 
           {isPageLoading ? (
-            <LoadingDashboard />
+            <AppLoadingState kind="story-library" />
           ) : !hasUserStories && !loadError ? (
             <DashboardLibraryEmptyState kind="no-stories" onCreateStory={handleCreateStory} />
           ) : hasUserStories ? (
             <div className="space-y-8">
               <StoryFiltersPanel
                 filters={filters}
+                sort={sort}
                 filteredCount={filteredCount}
                 totalCount={totalCount}
                 hasActiveFilters={hasActiveFilters}
                 onFilterChange={setFilter}
+                onSortChange={setSort}
                 onClearFilters={clearFilters}
               />
 
               {!hasVisibleStories ? (
-                <ErrorState
-                  variant="inline"
-                  tone="info"
-                  title="No stories match these filters"
-                  description="Try different search words or clear filters to see your full library."
-                />
+                <AppEmptyState kind="story-library-no-results" layout="section" />
               ) : null}
 
               {hasVisibleStories ? (

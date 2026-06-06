@@ -22,6 +22,7 @@ export {
   hasGeneratedStoryContent,
   mapStorySetupFormToInput,
   mapStorySetupInputToFormValues,
+  getStorySetupFormDefaults,
   saveStoryDraft,
   storySetupFormDefaults,
   storyPageCountOptions,
@@ -45,6 +46,11 @@ export type {
 export { StoryCreationProgress, StoryDetailLoadGuard, StoryEditForm, StoryEmptyState, StoryFlashcards, StoryFiltersPanel, StoryFilterFields, StoryFilterSummary, StoryGenerationLoading, StoryGenerationRecovery, StoryHeader, StoryImagePrompts, StoryMetadata, StoryOutputActions, StoryPages, StoryProjectCard, StoryReadOnlyView, StorySetupForm, StorySetupReview, StoryStatusBadge, StorySuggestionsPanel } from './components'
 export type { StoryCreationStep, StoryDetailField, StoryDetailSetupSection, StoryFiltersPanelProps, StoryFlashcardsProps, StoryHeaderProps, StoryImagePromptsProps, StoryMetadataProps, StoryPagesProps } from './components'
 export { StoryDetailPage } from './pages'
+export {
+  getStoryLibrarySortDescription,
+  STORY_LIBRARY_SORT_LABELS,
+} from './lib/storyLibraryFilters'
+export type { StoryLibrarySort } from './lib/storyLibraryFilters'
 export { useStoryDetail, useCreateStoryNavigationGuard, useStoryLibraryFilters, useFilteredStoryProjects } from './hooks'
 export type {
   StoryDetailLoadStatus,

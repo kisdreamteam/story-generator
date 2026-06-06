@@ -1,6 +1,10 @@
 import type { GeneratedStory } from '../types'
 import { TeacherHelperNote } from '@/shared/components'
 import {
+  ImagePromptReviewPanel,
+  type ImagePromptReviewPanelProps,
+} from '@/features/story-images'
+import {
   StoryFlashcards,
   StoryGeneratedContentSections,
   StoryImagePrompts,
@@ -13,12 +17,15 @@ interface StoryReadOnlyViewProps {
   showUnsavedHint?: boolean
   /** When true, shows a saved pill instead of the generic preview label. */
   savedToLibrary?: boolean
+  /** When set, replaces read-only illustration notes with the review editor. */
+  imagePromptReview?: Omit<ImagePromptReviewPanelProps, 'pages'>
 }
 
 export function StoryReadOnlyView({
   story,
   showUnsavedHint = false,
   savedToLibrary = false,
+  imagePromptReview,
 }: StoryReadOnlyViewProps) {
   return (
     <div className="space-y-6">
@@ -56,9 +63,13 @@ export function StoryReadOnlyView({
       )}
 
       <StoryGeneratedContentSections>
-        <StoryPages pages={story.storyPages} />
+        <StoryPages pages={story.storyPages} imagePrompts={story.imagePrompts} />
         <StoryFlashcards flashcards={story.flashcards} />
-        <StoryImagePrompts imagePrompts={story.imagePrompts} />
+        {imagePromptReview ? (
+          <ImagePromptReviewPanel pages={story.storyPages} {...imagePromptReview} />
+        ) : (
+          <StoryImagePrompts imagePrompts={story.imagePrompts} />
+        )}
       </StoryGeneratedContentSections>
     </div>
   )

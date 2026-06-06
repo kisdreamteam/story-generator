@@ -8,7 +8,8 @@ import {
   SectionCard,
 } from '../../../shared/components'
 import { ninaNinoSeries } from '../../series/services/series.service'
-import { ageGroupOptions, languageOptions } from '../config/formOptions'
+import { getAgeGroupOptions, getLanguageOptions } from '../config/formOptions'
+import { useTranslation } from '@/shared/i18n'
 import type { Series } from '../../series/types'
 
 interface CreateProjectFormProps {
@@ -42,6 +43,8 @@ export function CreateProjectForm({
   onSubmit,
   onCancel,
 }: CreateProjectFormProps) {
+  const { t } = useTranslation('forms')
+
   return (
     <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-6">
       <SectionCard title="Project Details" description="Name your project and choose language settings">
@@ -58,16 +61,16 @@ export function CreateProjectForm({
             label="Story Language"
             value={targetLanguage}
             onChange={(e) => onTargetLanguageChange(e.target.value)}
-            options={languageOptions}
-            hint="Stories are generated in English. Korean and Vietnamese translations are coming soon."
+            options={getLanguageOptions()}
+            hint={t('storyLanguage.generationHint')}
           />
 
           <AppSelect
             label="Age Group"
             value={ageGroup}
             onChange={(e) => onAgeGroupChange(e.target.value)}
-            options={ageGroupOptions}
-            hint={`Nina & Nino stories are designed for ages ${ninaNinoSeries.ageRange}`}
+            options={getAgeGroupOptions()}
+            hint={t('ageRange.ninaNinoHint', { range: ninaNinoSeries.ageRange })}
           />
         </div>
       </SectionCard>

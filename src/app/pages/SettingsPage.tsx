@@ -1,25 +1,20 @@
 import { PageHeader } from '@/shared/components'
+import { AppSettingsForm, useAppSettings } from '@/features/app-settings'
+import { useTranslation } from '@/shared/i18n'
 import { AccountAuthPanel } from '../components/AccountAuthPanel'
 
 export function SettingsPage() {
+  const { t } = useTranslation('settings')
+  const { settings, isSaving, saveSettings } = useAppSettings()
+
   return (
     <>
-      <PageHeader
-        title="Settings"
-        description="Account sign-in and classroom preferences."
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <div className="space-y-6">
         <AccountAuthPanel />
 
-        <div className="rounded-xl border border-dashed border-stone-300 bg-white p-8">
-          <p className="text-sm font-medium text-stone-800">Coming soon</p>
-          <ul className="mt-4 space-y-2 text-sm text-stone-500">
-            <li>Default age range</li>
-            <li>Preferred story length</li>
-            <li>Language options</li>
-          </ul>
-        </div>
+        <AppSettingsForm settings={settings} isSaving={isSaving} onSave={saveSettings} />
       </div>
     </>
   )
