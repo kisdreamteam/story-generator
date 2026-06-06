@@ -1,74 +1,105 @@
+import { memo } from 'react'
 import { AppButton, AppCard } from '@/shared/components'
 import type { StoryProject } from '../types'
-import { formatStoryDate, getStoryStatusBadgeClasses } from '../utils/storyFormat'
+import { formatStoryDate } from '../utils/storyFormat'
+import { getStoryStatusLabelForProject } from '../utils/storyStatus'
 import { getAgeRangeLabel } from '../utils/storySetupForm'
-import { getStoryProjectStatusLabel } from '../utils/storyProjectDisplay'
+import { StoryStatusBadge } from './StoryStatusBadge'
 
 interface StoryProjectCardProps {
   project: StoryProject
-  /** Override status — e.g. "Mock draft" for the sample project. */
+  /** Override status — e.g. "Sample" for demo content. */
   statusLabel?: string
   actionLabel?: string
-  onViewPreview?: () => void
-  onDelete?: () => void
+  /** Stable handler — receives project id to avoid per-row inline closures in lists. */
+  onOpenProject?: (projectId: string) => void
+  onDuplicateProject?: (project: StoryProject) => void
+  onDeleteProject?: (project: StoryProject) => void
+  isDeleting?: boolean
+  isDuplicating?: boolean
 }
 
-export function StoryProjectCard({
+function buildScanMetaLine(project: StoryProject): string {
+  const ageGroup = getAgeRangeLabel(project.ageRange)
+  const topic = project.theme.trim() || 'No topic yet'
+  const created = formatStoryDate(project.createdAt)
+
+  return `${ageGroup} · ${topic} · Created ${created}`
+}
+
+/**
+ * Library list row — memoized so loading/error state updates elsewhere on the page
+ * do not re-render every card when the stories array reference is unchanged.
+ */
+export const StoryProjectCard = memo(function StoryProjectCard({
   project,
   statusLabel,
-  actionLabel = 'View preview',
-  onViewPreview,
-  onDelete,
+  actionLabel = 'Open story',
+  onOpenProject,
+  onDuplicateProject,
+  onDeleteProject,
+  isDeleting = false,
+  isDuplicating = false,
 }: StoryProjectCardProps) {
-  const badgeLabel = statusLabel ?? getStoryProjectStatusLabel(project)
+  const badgeLabel = statusLabel ?? getStoryStatusLabelForProject(project)
+  const showUpdated =
+    project.updatedAt !== project.createdAt &&
+    formatStoryDate(project.updatedAt) !== formatStoryDate(project.createdAt)
 
   return (
-    <AppCard padding="md" className="border-stone-200">
+    <AppCard padding="md" className="border-stone-200 transition-colors hover:border-stone-300">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-stone-900">{project.title}</h3>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStoryStatusBadgeClasses(badgeLabel)}`}
-            >
-              {badgeLabel}
-            </span>
+            <h3 className="text-base font-semibold leading-snug text-stone-900">{project.title}</h3>
+            <StoryStatusBadge label={badgeLabel} />
           </div>
 
-          <dl className="grid gap-2 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium text-stone-500">Theme</dt>
-              <dd className="text-stone-800">{project.theme}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium text-stone-500">Age range</dt>
-              <dd className="text-stone-800">{getAgeRangeLabel(project.ageRange)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium text-stone-500">Language</dt>
-              <dd className="text-stone-800">{project.language}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium text-stone-500">Page count</dt>
-              <dd className="text-stone-800">{project.pageCount} pages</dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="text-xs font-medium text-stone-500">Updated</dt>
-              <dd className="text-stone-800">{formatStoryDate(project.updatedAt)}</dd>
-            </div>
-          </dl>
+          <p className="text-sm leading-relaxed text-stone-600">{buildScanMetaLine(project)}</p>
+
+          {showUpdated && (
+            <p className="text-xs text-stone-500">
+              Last updated {formatStoryDate(project.updatedAt)}
+            </p>
+          )}
         </div>
 
-        {(onViewPreview || onDelete) && (
-          <div className="flex flex-col gap-2 sm:items-end">
-            {onViewPreview && (
-              <AppButton type="button" variant="secondary" onClick={onViewPreview}>
+        {(onOpenProject || onDuplicateProject || onDeleteProject) && (
+          <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+            {onOpenProject && (
+              <AppButton
+                type="button"
+                variant="secondary"
+                onClick={() => onOpenProject(project.id)}
+                disabled={isDeleting || isDuplicating}
+                fullWidth
+                className="sm:w-auto"
+              >
                 {actionLabel}
               </AppButton>
             )}
-            {onDelete && (
-              <AppButton type="button" variant="ghost" onClick={onDelete}>
-                Delete
+            {onDuplicateProject && (
+              <AppButton
+                type="button"
+                variant="ghost"
+                onClick={() => onDuplicateProject(project)}
+                disabled={isDeleting || isDuplicating}
+                fullWidth
+                className="sm:w-auto"
+              >
+                {isDuplicating ? 'Duplicating…' : 'Duplicate'}
+              </AppButton>
+            )}
+            {onDeleteProject && (
+              <AppButton
+                type="button"
+                variant="ghost"
+                onClick={() => onDeleteProject(project)}
+                disabled={isDeleting || isDuplicating}
+                fullWidth
+                className="sm:w-auto"
+              >
+                {isDeleting ? 'Deleting…' : 'Delete'}
               </AppButton>
             )}
           </div>
@@ -76,4 +107,4 @@ export function StoryProjectCard({
       </div>
     </AppCard>
   )
-}
+})

@@ -65,3 +65,31 @@ export function syncSessionCloudIdMapping(localId: string, cloudId: string): voi
     // Ignore sessionStorage errors.
   }
 }
+
+export function removeLocalCloudMigrationEntry(localId: string): void {
+  if (!localId) return
+
+  const map = readMap()
+  if (!(localId in map)) return
+
+  delete map[localId]
+  writeMap(map)
+}
+
+export function removeSessionCloudIdMapping(localId: string): void {
+  try {
+    if (typeof sessionStorage === 'undefined') return
+
+    sessionStorage.removeItem(`${CLOUD_ID_MAP_PREFIX}${localId}`)
+  } catch {
+    // Ignore sessionStorage errors.
+  }
+}
+
+/** Remove local-to-cloud id mappings after a cloud story is deleted. */
+export function clearStoryIdMappings(localId: string): void {
+  if (!localId) return
+
+  removeLocalCloudMigrationEntry(localId)
+  removeSessionCloudIdMapping(localId)
+}

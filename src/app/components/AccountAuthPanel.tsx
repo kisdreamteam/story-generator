@@ -1,7 +1,9 @@
-import { AppButton, AppInput, SectionCard } from '@/shared/components'
+import { AppButton, AppInput, ErrorState, LoadingCard, SectionCard } from '@/shared/components'
 import { StorageStatusIndicator } from '@/app/components/StorageStatusIndicator'
 import { LocalStoryMigrationPrompt } from '@/app/components/LocalStoryMigrationPrompt'
 import { useAuth } from '@/shared/lib/supabase/useAuth'
+import { formatTeacherFacingAuthError } from '@/features/story-generator/lib/story-route-guards'
+import { storyFeedback, toast } from '@/shared/feedback'
 import { useState } from 'react'
 
 type AuthMode = 'sign-in' | 'sign-up'
@@ -11,16 +13,16 @@ export function AccountAuthPanel() {
   const [mode, setMode] = useState<AuthMode>('sign-in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isAuthAvailable) {
     return (
-      <SectionCard title="Account" description="Teacher sign-in for cloud story storage.">
+      <SectionCard title="Account" description="Sign in to save stories to your teacher account.">
         <StorageStatusIndicator className="mb-4" />
         <p className="text-sm text-stone-600">
-          Account sign-in is not available on this build. Stories stay on this device only.
+          Account sign-in is not available in this version. Stories save in this browser on this
+          computer.
         </p>
       </SectionCard>
     )
@@ -30,14 +32,20 @@ export function AccountAuthPanel() {
     return (
       <SectionCard title="Account" description="Restoring your session…">
         <StorageStatusIndicator className="mb-4" />
-        <p className="text-sm text-stone-500">Checking sign-in status…</p>
+        <LoadingCard
+          variant="compact"
+          showAction={false}
+          title="Checking sign-in status"
+          description="Restoring your teacher account session…"
+          ariaLabel="Checking sign-in status"
+        />
       </SectionCard>
     )
   }
 
   if (isAuthenticated && user) {
     return (
-      <SectionCard title="Account" description="Your teacher account on this project.">
+      <SectionCard title="Account" description="Your teacher account.">
         <StorageStatusIndicator className="mb-4" />
         <LocalStoryMigrationPrompt className="mb-4" />
 
@@ -54,9 +62,10 @@ export function AccountAuthPanel() {
             variant="secondary"
             onClick={() => {
               setError(null)
-              setMessage(null)
               void signOut().catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : 'Sign out failed')
+                const message = formatTeacherFacingAuthError(err)
+                setError(message)
+                toast.error('Could not sign out', message)
               })
             }}
           >
@@ -64,14 +73,12 @@ export function AccountAuthPanel() {
           </AppButton>
         </div>
 
-        {error && (
-          <p className="mt-3 text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        )}
+        <div className="mt-3">
+          {error && <ErrorState variant="inline" tone="error" description={error} />}
+        </div>
 
         <p className="mt-3 text-xs text-stone-500">
-          Signing out saves new stories on this device only. Stories already in your account stay
+          After signing out, new stories save in this browser. Stories already in your account stay
           there.
         </p>
       </SectionCard>
@@ -81,23 +88,24 @@ export function AccountAuthPanel() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError(null)
-    setMessage(null)
     setIsSubmitting(true)
 
     try {
       if (mode === 'sign-in') {
         await signIn(email, password)
-        setMessage('You are signed in.')
+        storyFeedback.signedIn()
       } else {
         const result = await signUp(email, password)
         if (result.needsEmailConfirmation) {
-          setMessage('Check your email to confirm your account, then sign in.')
+          storyFeedback.emailConfirmationRequired()
         } else {
-          setMessage('Account created. You are signed in.')
+          storyFeedback.accountCreated()
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
+      const message = formatTeacherFacingAuthError(err)
+      setError(message)
+      toast.error(mode === 'sign-in' ? 'Sign in failed' : 'Sign up failed', message)
     } finally {
       setIsSubmitting(false)
     }
@@ -145,16 +153,7 @@ export function AccountAuthPanel() {
           minLength={6}
         />
 
-        {error && (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        )}
-        {message && (
-          <p className="text-sm text-green-700" role="status">
-            {message}
-          </p>
-        )}
+        {error && <ErrorState variant="inline" tone="error" description={error} />}
 
         <AppButton type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}

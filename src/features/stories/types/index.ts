@@ -6,4 +6,5 @@ export type {
   StoryPlanReview,
   StoryProject,
   StorySetupInput,
+  StoryGenerationMetadata,
 } from './story.types'

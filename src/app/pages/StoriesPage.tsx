@@ -1,20 +1,28 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AppButton, ErrorState, PageHeader, SectionCard } from '@/shared/components'
-import { deleteStoryDraft, getStoryDrafts } from '@/features/story-generator'
-import { classifyStoryLoadError } from '@/features/story-generator/lib/story-route-guards'
+import { AppButton, ErrorState, LoadingDashboard, PageHeader, SectionCard } from '@/shared/components'
+import { DashboardLibraryEmptyState } from '@/app/components/DashboardLibraryEmptyState'
+import { getStoryDrafts } from '@/features/story-generator'
+import {
+  classifyStoryDeleteError,
+  classifyStoryLoadError,
+  type StoryLoadErrorPresentation,
+} from '@/features/story-generator/lib/story-route-guards'
+import { storyFeedback } from '@/shared/feedback'
+import { deleteStory, duplicateStory } from '@/features/stories/api/storyStorageApi'
+import { confirmDeleteStory } from '@/features/stories/lib/confirmDeleteStory'
 import { StorageStatusIndicator } from '@/app/components/StorageStatusIndicator'
 import { LocalStoryMigrationPrompt } from '@/app/components/LocalStoryMigrationPrompt'
 import { useAuth } from '@/shared/lib/supabase/useAuth'
 import {
   getStoryProjectActionLabel,
-  getStoryProjectStatusLabel,
   hasGeneratedStoryContent,
   mockGeneratedStory,
-  mockStoryProject,
-  StoryEmptyState,
+  StoryFiltersPanel,
   StoryProjectCard,
   StoryReadOnlyView,
+  useFilteredStoryProjects,
+  useStoryLibraryFilters,
   type StoryProject,
 } from '@/features/stories'
 
@@ -26,45 +34,87 @@ function sortByUpdatedAtNewestFirst(stories: StoryProject[]): StoryProject[] {
   )
 }
 
-/** Local drafts plus mock sample, deduped by id and sorted newest first. */
-function buildRecentStories(localDrafts: StoryProject[]): StoryProject[] {
-  const storiesById = new Map<string, StoryProject>()
-
-  for (const draft of localDrafts) {
-    storiesById.set(draft.id, draft)
-  }
-
-  storiesById.set(mockStoryProject.id, mockStoryProject)
-
-  return sortByUpdatedAtNewestFirst([...storiesById.values()])
+function storyCountLabel(count: number): string {
+  if (count === 1) return '1 story'
+  return `${count} stories`
 }
 
-function isMockSample(project: StoryProject): boolean {
-  return project.id === mockStoryProject.id
+function partitionLibraryStories(stories: StoryProject[]) {
+  const finishedStories = stories.filter((project) => hasGeneratedStoryContent(project))
+  const storyPlans = stories.filter((project) => !hasGeneratedStoryContent(project))
+  return { finishedStories, storyPlans }
 }
 
-function isLocalStory(project: StoryProject): boolean {
-  return !isMockSample(project)
+function LibraryStoryList({
+  stories,
+  deletingStoryId,
+  duplicatingStoryId,
+  onOpenProject,
+  onDuplicateProject,
+  onDeleteProject,
+}: {
+  stories: StoryProject[]
+  deletingStoryId: string | null
+  duplicatingStoryId: string | null
+  onOpenProject: (projectId: string) => void
+  onDuplicateProject: (project: StoryProject) => void
+  onDeleteProject: (project: StoryProject) => void
+}) {
+  return (
+    <ul className="space-y-3" aria-label="Your stories">
+      {stories.map((project) => (
+        <li key={project.id}>
+          <StoryProjectCard
+            project={project}
+            actionLabel={getStoryProjectActionLabel(project)}
+            onOpenProject={onOpenProject}
+            onDuplicateProject={onDuplicateProject}
+            onDeleteProject={onDeleteProject}
+            isDeleting={deletingStoryId === project.id}
+            isDuplicating={duplicatingStoryId === project.id}
+          />
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 export function StoriesPage() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth()
   const story = mockGeneratedStory
-  const [recentStories, setRecentStories] = useState<StoryProject[]>([])
+  const [userStories, setUserStories] = useState<StoryProject[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<StoryLoadErrorPresentation | null>(null)
+  const [actionError, setActionError] = useState<StoryLoadErrorPresentation | null>(null)
+  const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null)
+  const [duplicatingStoryId, setDuplicatingStoryId] = useState<string | null>(null)
+  const deleteInFlightRef = useRef(false)
+  const duplicateInFlightRef = useRef(false)
+
+  const { filters, debouncedFilters, setFilter, clearFilters, hasActiveFilters } =
+    useStoryLibraryFilters()
+
+  const { filteredStories, totalCount, filteredCount, isFiltered } = useFilteredStoryProjects(
+    userStories,
+    debouncedFilters,
+  )
+
+  const { finishedStories, storyPlans } = useMemo(
+    () => partitionLibraryStories(filteredStories),
+    [filteredStories],
+  )
 
   const refreshRecentStories = useCallback(async () => {
     setIsLoading(true)
-    setListError(null)
+    setLoadError(null)
 
     try {
       const drafts = await getStoryDrafts()
-      setRecentStories(buildRecentStories(drafts))
+      setUserStories(sortByUpdatedAtNewestFirst(drafts))
     } catch (error) {
-      setRecentStories(buildRecentStories([]))
-      setListError(classifyStoryLoadError(error).description)
+      setUserStories([])
+      setLoadError(classifyStoryLoadError(error))
     } finally {
       setIsLoading(false)
     }
@@ -75,53 +125,115 @@ export function StoriesPage() {
     void refreshRecentStories()
   }, [isAuthLoading, isAuthenticated, refreshRecentStories])
 
-  function scrollToPreview() {
-    document.getElementById(STORY_PREVIEW_ID)?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  function handleViewStory(projectId: string) {
-    navigate(`/dashboard/stories/${encodeURIComponent(projectId)}`)
-  }
-
-  function handleContinueEditing(projectId: string) {
-    navigate(`/dashboard/create?draftId=${encodeURIComponent(projectId)}`)
-  }
-
   function handleCreateStory() {
     navigate('/dashboard/create')
   }
 
-  function handleDeleteDraft(projectId: string) {
-    if (!window.confirm('Delete this draft from this device?')) return
+  const handleOpenProject = useCallback(
+    (projectId: string) => {
+      const project = userStories.find((entry) => entry.id === projectId)
+      if (!project) return
 
-    void (async () => {
-      try {
-        await deleteStoryDraft(projectId)
-        await refreshRecentStories()
-      } catch (error) {
-        setListError(classifyStoryLoadError(error).description)
+      if (hasGeneratedStoryContent(project)) {
+        navigate(`/dashboard/stories/${encodeURIComponent(projectId)}`)
+        return
       }
-    })()
-  }
+
+      navigate(`/dashboard/create?draftId=${encodeURIComponent(projectId)}`)
+    },
+    [navigate, userStories],
+  )
+
+  const handleDuplicateStory = useCallback(
+    (project: StoryProject) => {
+      if (deletingStoryId || duplicatingStoryId || duplicateInFlightRef.current) return
+
+      duplicateInFlightRef.current = true
+      setDuplicatingStoryId(project.id)
+      setActionError(null)
+
+      void (async () => {
+        try {
+          const duplicated = await duplicateStory(project.id)
+          storyFeedback.storyDuplicated(duplicated.title)
+          await refreshRecentStories()
+          navigate(`/dashboard/stories/${encodeURIComponent(duplicated.id)}`)
+        } catch (error) {
+          const presentation = classifyStoryLoadError(error)
+          setActionError(presentation)
+          storyFeedback.cloudSyncFailed(presentation.description)
+        } finally {
+          duplicateInFlightRef.current = false
+          setDuplicatingStoryId(null)
+        }
+      })()
+    },
+    [deletingStoryId, duplicatingStoryId, navigate, refreshRecentStories],
+  )
+
+  const handleDeleteStory = useCallback(
+    (project: StoryProject) => {
+      if (deletingStoryId || deleteInFlightRef.current) return
+      if (!confirmDeleteStory(project.title)) return
+
+      deleteInFlightRef.current = true
+      setDeletingStoryId(project.id)
+      setActionError(null)
+
+      const previousStories = userStories
+      setUserStories((stories) => stories.filter((story) => story.id !== project.id))
+
+      void (async () => {
+        try {
+          await deleteStory(project.id)
+          storyFeedback.storyDeleted(project.title)
+        } catch (error) {
+          setUserStories(previousStories)
+          const presentation = classifyStoryDeleteError(error)
+          setActionError(presentation)
+          storyFeedback.deleteFailed(presentation.description)
+          storyFeedback.optimisticRollback('The story was put back in your library.')
+        } finally {
+          deleteInFlightRef.current = false
+          setDeletingStoryId(null)
+        }
+      })()
+    },
+    [deletingStoryId, userStories],
+  )
+
+  const isPageLoading = isLoading || isAuthLoading
+  const hasUserStories = userStories.length > 0
+  const hasVisibleStories = filteredStories.length > 0
+  const listDescription = isPageLoading
+    ? 'Loading your stories…'
+    : hasUserStories
+      ? isFiltered
+        ? `${filteredCount} of ${storyCountLabel(totalCount)} match your filters — newest first.`
+        : `${storyCountLabel(totalCount)} — newest first. Open a story to read or edit it.`
+      : 'Your story plans and finished stories will show up here.'
 
   return (
     <>
       <PageHeader
-        title="Stories"
-        description="Your saved and recent stories will appear here. Preview mock content below."
+        title="Your stories"
+        description="Story plans and finished Nina & Nino stories for your class — all in one place."
       />
 
-      <div className="mx-auto max-w-2xl space-y-8">
-        <SectionCard title="Recent stories" description="Drafts and recently updated story projects.">
-          <StorageStatusIndicator className="mb-4" />
+      <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
+        <SectionCard
+          title="Story library"
+          description={listDescription}
+          badge={<StorageStatusIndicator compact />}
+        >
           <LocalStoryMigrationPrompt
             className="mb-4"
             onMigrationComplete={() => void refreshRecentStories()}
           />
 
-          {listError && (
+          {loadError && (
             <div className="mb-4">
-              <ErrorState title="Could not load stories" description={listError}>
+              <ErrorState title={loadError.title} description={loadError.description}>
                 <AppButton type="button" variant="secondary" onClick={() => void refreshRecentStories()}>
                   Try again
                 </AppButton>
@@ -129,55 +241,126 @@ export function StoriesPage() {
             </div>
           )}
 
-          {isLoading || isAuthLoading ? (
-            <p className="text-sm text-stone-500">Loading stories…</p>
-          ) : recentStories.length === 0 && !listError ? (
-            <StoryEmptyState
-              title="No stories yet"
-              description="Create your first Nina & Nino story to see drafts and generated previews here."
-              actionLabel="Create story"
-              onAction={handleCreateStory}
-            />
-          ) : (
-            <div className="space-y-4">
-              {recentStories.map((project) => (
-                <StoryProjectCard
-                  key={project.id}
-                  project={project}
-                  statusLabel={
-                    isMockSample(project)
-                      ? getStoryProjectStatusLabel(project, { mockSample: true })
-                      : undefined
-                  }
-                  actionLabel={
-                    isMockSample(project)
-                      ? 'View preview'
-                      : getStoryProjectActionLabel(project)
-                  }
-                  onViewPreview={
-                    isMockSample(project)
-                      ? scrollToPreview
-                      : hasGeneratedStoryContent(project)
-                        ? () => handleViewStory(project.id)
-                        : () => handleContinueEditing(project.id)
-                  }
-                  onDelete={
-                    isLocalStory(project) ? () => handleDeleteDraft(project.id) : undefined
-                  }
-                />
-              ))}
+          {actionError && !loadError && (
+            <div className="mb-4">
+              <ErrorState title={actionError.title} description={actionError.description}>
+                <AppButton type="button" variant="secondary" onClick={() => setActionError(null)}>
+                  Dismiss
+                </AppButton>
+              </ErrorState>
             </div>
           )}
+
+          {isPageLoading ? (
+            <LoadingDashboard />
+          ) : !hasUserStories && !loadError ? (
+            <DashboardLibraryEmptyState kind="no-stories" onCreateStory={handleCreateStory} />
+          ) : hasUserStories ? (
+            <div className="space-y-8">
+              <StoryFiltersPanel
+                filters={filters}
+                filteredCount={filteredCount}
+                totalCount={totalCount}
+                hasActiveFilters={hasActiveFilters}
+                onFilterChange={setFilter}
+                onClearFilters={clearFilters}
+              />
+
+              {!hasVisibleStories ? (
+                <ErrorState
+                  variant="inline"
+                  tone="info"
+                  title="No stories match these filters"
+                  description="Try different search words or clear filters to see your full library."
+                />
+              ) : null}
+
+              {hasVisibleStories ? (
+                <>
+              <section aria-labelledby="finished-stories-heading">
+                <div className="mb-3 space-y-1">
+                  <h3 id="finished-stories-heading" className="text-sm font-semibold text-stone-900">
+                    Finished stories
+                  </h3>
+                  <p className="text-xs leading-relaxed text-stone-500">
+                    Generated stories ready to read, edit, or print for class.
+                  </p>
+                </div>
+                {finishedStories.length === 0 ? (
+                  <DashboardLibraryEmptyState
+                    kind="no-finished-stories"
+                    layout="section"
+                    hasStoryPlans={storyPlans.length > 0}
+                    onCreateStory={handleCreateStory}
+                  />
+                ) : (
+                  <LibraryStoryList
+                    stories={finishedStories}
+                    deletingStoryId={deletingStoryId}
+                    duplicatingStoryId={duplicatingStoryId}
+                    onOpenProject={handleOpenProject}
+                    onDuplicateProject={handleDuplicateStory}
+                    onDeleteProject={handleDeleteStory}
+                  />
+                )}
+              </section>
+
+              <section aria-labelledby="story-plans-heading">
+                <div className="mb-3 space-y-1">
+                  <h3 id="story-plans-heading" className="text-sm font-semibold text-stone-900">
+                    Story plans
+                  </h3>
+                  <p className="text-xs leading-relaxed text-stone-500">
+                    Saved lesson setups — open one to edit or generate your story.
+                  </p>
+                </div>
+                {storyPlans.length === 0 ? (
+                  <DashboardLibraryEmptyState
+                    kind="no-story-plans"
+                    layout="section"
+                    onCreateStory={handleCreateStory}
+                  />
+                ) : (
+                  <LibraryStoryList
+                    stories={storyPlans}
+                    deletingStoryId={deletingStoryId}
+                    duplicatingStoryId={duplicatingStoryId}
+                    onOpenProject={handleOpenProject}
+                    onDuplicateProject={handleDuplicateStory}
+                    onDeleteProject={handleDeleteStory}
+                  />
+                )}
+              </section>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </SectionCard>
 
-        <section id={STORY_PREVIEW_ID} className="scroll-mt-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-stone-900">{story.title}</h2>
-            <p className="mt-1 text-sm text-stone-600">{story.summary}</p>
-          </div>
+        <SectionCard
+          title="Sample story"
+          description="See what a finished classroom story looks like before you create your own."
+        >
+          <div id={STORY_PREVIEW_ID} className="scroll-mt-6 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <h3 className="text-base font-semibold text-stone-900">{story.title}</h3>
+                <p className="text-sm leading-relaxed text-stone-600">{story.summary}</p>
+              </div>
+              <AppButton
+                type="button"
+                variant="secondary"
+                onClick={handleCreateStory}
+                fullWidth
+                className="shrink-0 sm:w-auto"
+              >
+                Create your own story
+              </AppButton>
+            </div>
 
-          <StoryReadOnlyView story={story} />
-        </section>
+            <StoryReadOnlyView story={story} />
+          </div>
+        </SectionCard>
       </div>
     </>
   )

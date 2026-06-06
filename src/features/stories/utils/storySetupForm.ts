@@ -114,6 +114,19 @@ export function mapStorySetupInputToFormValues(input: StorySetupInput): StorySet
   }
 }
 
+/** True when every teacher-facing form field matches. */
+export function areStorySetupFormValuesEqual(
+  left: StorySetupFormValues,
+  right: StorySetupFormValues,
+): boolean {
+  return (Object.keys(left) as (keyof StorySetupFormValues)[]).every((key) => left[key] === right[key])
+}
+
+/** True when persisted setup payloads match. */
+export function areStorySetupInputsEqual(left: StorySetupInput, right: StorySetupInput): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 /** Maps teacher-facing form fields to the shared StorySetupInput contract. */
 export function mapStorySetupFormToInput(values: StorySetupFormValues): StorySetupInput {
   const noteLines = [

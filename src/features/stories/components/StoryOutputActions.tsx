@@ -7,6 +7,8 @@ interface StoryOutputActionsProps {
   onExportStory: () => void
   onStartOver: () => void
   storySaved?: boolean
+  isSavingStory?: boolean
+  isBusy?: boolean
 }
 
 export function StoryOutputActions({
@@ -16,26 +18,69 @@ export function StoryOutputActions({
   onExportStory,
   onStartOver,
   storySaved = false,
+  isSavingStory = false,
+  isBusy = false,
 }: StoryOutputActionsProps) {
+  const primaryLabel = isSavingStory
+    ? 'Saving to Your stories…'
+    : storySaved
+      ? 'Open in Your stories'
+      : 'Save to Your stories'
+
   return (
-    <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-4">
-      {storySaved && (
-        <p className="text-sm text-brand-700" role="status">
-          Story saved. Open it from your stories list anytime.
+    <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+      {!storySaved && !isSavingStory && (
+        <p className="text-sm leading-relaxed text-stone-600">
+          Your story is ready to read. Save it to Your stories so you can open, edit, or print it
+          later.
         </p>
       )}
-      <p className="text-xs text-stone-500">Edit and export are mock actions for now.</p>
+
+      {storySaved && (
+        <p className="text-sm leading-relaxed text-stone-600">
+          Saved to Your stories. Open it anytime or edit individual pages, vocabulary, and illustration
+          notes.
+        </p>
+      )}
+
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <AppButton type="button" onClick={storySaved ? onViewStory : onSaveStory}>
-          {storySaved ? 'View story' : 'Save story'}
+        <AppButton
+          type="button"
+          onClick={storySaved ? onViewStory : onSaveStory}
+          disabled={isBusy}
+          fullWidth
+          className="sm:w-auto"
+        >
+          {primaryLabel}
         </AppButton>
-        <AppButton type="button" variant="secondary" onClick={onEditStory} disabled={!storySaved}>
-          Edit story
+        <AppButton
+          type="button"
+          variant="secondary"
+          onClick={onEditStory}
+          disabled={!storySaved || isBusy}
+          fullWidth
+          className="sm:w-auto"
+        >
+          Edit pages
         </AppButton>
-        <AppButton type="button" variant="secondary" onClick={onExportStory}>
-          Export story
+        <AppButton
+          type="button"
+          variant="secondary"
+          onClick={onExportStory}
+          disabled
+          fullWidth
+          className="sm:w-auto"
+        >
+          Export (coming soon)
         </AppButton>
-        <AppButton type="button" variant="ghost" onClick={onStartOver} className="sm:ml-auto">
+        <AppButton
+          type="button"
+          variant="ghost"
+          onClick={onStartOver}
+          disabled={isBusy}
+          fullWidth
+          className="sm:ml-auto sm:w-auto"
+        >
           Start over
         </AppButton>
       </div>

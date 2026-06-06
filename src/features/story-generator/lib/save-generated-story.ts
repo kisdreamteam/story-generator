@@ -1,4 +1,5 @@
-import type { GeneratedStory, StoryProject, StorySetupInput } from '../types/story-generator.types'
+import type { GeneratedStoryOutput } from './generation/types'
+import type { StoryProject, StorySetupInput } from '../types/story-generator.types'
 import { attachGeneratedStoryToProject } from '@/features/stories/utils/attachGeneratedStoryToProject'
 import { createDraftProjectFromSetup } from '@/features/stories/utils/createDraftProjectFromSetup'
 import { loadDraftById } from './load-draft'
@@ -6,7 +7,7 @@ import { loadDraftById } from './load-draft'
 /** Build and merge a project with generated output before persisting. */
 export async function buildProjectWithGeneratedStory(
   setupData: StorySetupInput,
-  generatedStory: GeneratedStory,
+  generatedStory: GeneratedStoryOutput,
   options?: { activeDraftId?: string | null; createdAt?: string | null },
 ): Promise<StoryProject> {
   const activeDraftId = options?.activeDraftId
@@ -19,5 +20,5 @@ export async function buildProjectWithGeneratedStory(
       })
     : createDraftProjectFromSetup(setupData)
 
-  return attachGeneratedStoryToProject(baseProject, generatedStory)
+  return attachGeneratedStoryToProject(baseProject, generatedStory, generatedStory.generationMetadata)
 }

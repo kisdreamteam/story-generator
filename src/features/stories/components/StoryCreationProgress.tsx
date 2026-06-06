@@ -1,9 +1,14 @@
 export type StoryCreationStep = 'setup' | 'review' | 'generated'
 
-const storyCreationSteps: { id: StoryCreationStep; label: string }[] = [
-  { id: 'setup', label: 'Story setup' },
-  { id: 'review', label: 'Review plan' },
-  { id: 'generated', label: 'Generated story' },
+const storyCreationSteps: {
+  id: StoryCreationStep
+  label: string
+  shortLabel: string
+  helper: string
+}[] = [
+  { id: 'setup', label: 'Plan your story', shortLabel: 'Plan', helper: 'Lesson goals and story setup' },
+  { id: 'review', label: 'Review plan', shortLabel: 'Review', helper: 'Save or generate' },
+  { id: 'generated', label: 'Your story', shortLabel: 'Story', helper: 'Read and save' },
 ]
 
 interface StoryCreationProgressProps {
@@ -43,7 +48,7 @@ export function StoryCreationProgress({ currentStep }: StoryCreationProgressProp
                 </span>
                 <span
                   className={[
-                    'text-sm font-medium',
+                    'text-sm font-medium leading-snug',
                     isActive && 'text-stone-900',
                     isComplete && 'text-stone-700',
                     isUpcoming && 'text-stone-400',
@@ -51,7 +56,11 @@ export function StoryCreationProgress({ currentStep }: StoryCreationProgressProp
                     .filter(Boolean)
                     .join(' ')}
                 >
-                  {step.label}
+                  <span className="sm:hidden">{step.shortLabel}</span>
+                  <span className="hidden sm:inline">{step.label}</span>
+                  {isActive && (
+                    <span className="mt-0.5 block text-xs font-normal text-stone-500">{step.helper}</span>
+                  )}
                 </span>
               </div>
 

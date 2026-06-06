@@ -41,7 +41,7 @@ export function canGenerate(at = new Date()): CanGenerateResult {
   if (remainingGenerations <= 0) {
     return {
       allowed: false,
-      reason: 'Daily story generation limit reached.',
+      reason: 'You have reached today\'s limit for creating stories. Try again tomorrow.',
       remainingGenerations: 0,
       remainingEstimatedTokens,
     }
@@ -50,7 +50,7 @@ export function canGenerate(at = new Date()): CanGenerateResult {
   if (remainingEstimatedTokens <= 0) {
     return {
       allowed: false,
-      reason: 'Daily estimated token limit reached.',
+      reason: 'You have reached today\'s limit for creating stories. Try again tomorrow.',
       remainingGenerations,
       remainingEstimatedTokens: 0,
     }

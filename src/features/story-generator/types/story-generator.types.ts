@@ -6,4 +6,5 @@ export type {
   StoryPage,
   StoryProject,
   StorySetupInput,
+  StoryGenerationMetadata,
 } from '../../stories/types'

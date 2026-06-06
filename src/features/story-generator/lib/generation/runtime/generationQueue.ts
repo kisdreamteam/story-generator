@@ -1,40 +1,23 @@
+import {
+  createGenerationJobQueue,
+  GenerationJobBusyError,
+  isGenerationJobBusyError,
+  type EnqueueGenerationJobOptions,
+  type GenerationJob,
+} from '@/shared/ai/jobs'
 import type { GeneratedStoryOutput, StoryGenerationInput } from '../types'
-import { abortGeneration, GenerationAbortedError } from './generationAbort'
-import { buildGenerationInputKey, createGenerationSession, type GenerationSession } from './generationSession'
+import { buildGenerationInputKey } from './generationSession'
 
-export class GenerationBusyError extends Error {
-  constructor(message = 'Story generation is already in progress.') {
-    super(message)
-    this.name = 'GenerationBusyError'
-  }
-}
+export { GenerationJobBusyError as GenerationBusyError, isGenerationJobBusyError as isGenerationBusyError }
 
-export function isGenerationBusyError(error: unknown): error is GenerationBusyError {
-  return error instanceof GenerationBusyError
-}
+export type EnqueueStoryGenerationOptions = EnqueueGenerationJobOptions
 
-type GenerationRunner = (
+type StoryGenerationRunner = (
   input: StoryGenerationInput,
   signal: AbortSignal,
 ) => Promise<GeneratedStoryOutput>
 
-interface ActiveQueuedGeneration {
-  session: GenerationSession
-  promise: Promise<GeneratedStoryOutput>
-}
-
-let activeGeneration: ActiveQueuedGeneration | null = null
-
-function clearActiveIfSession(sessionId: string): void {
-  if (activeGeneration?.session.id === sessionId) {
-    activeGeneration = null
-  }
-}
-
-export interface EnqueueStoryGenerationOptions {
-  /** Cancel the in-flight generation and start this one. */
-  replace?: boolean
-}
+const storyGenerationJobQueue = createGenerationJobQueue<StoryGenerationInput, GeneratedStoryOutput>()
 
 /**
  * Run one story generation at a time.
@@ -42,59 +25,63 @@ export interface EnqueueStoryGenerationOptions {
  */
 export async function enqueueStoryGeneration(
   input: StoryGenerationInput,
-  run: GenerationRunner,
+  run: StoryGenerationRunner,
   options: EnqueueStoryGenerationOptions = {},
 ): Promise<GeneratedStoryOutput> {
-  const inputKey = buildGenerationInputKey(input)
-
-  if (activeGeneration) {
-    if (activeGeneration.session.inputKey === inputKey && !options.replace) {
-      return activeGeneration.promise
-    }
-
-    if (!options.replace) {
-      throw new GenerationBusyError()
-    }
-
-    cancelActiveStoryGeneration()
-  }
-
-  const session = createGenerationSession(input)
-
-  const promise = run(input, session.signal)
-    .then((output) => {
-      if (session.signal.aborted) {
-        throw new GenerationAbortedError()
-      }
-
-      return output
-    })
-    .finally(() => {
-      clearActiveIfSession(session.id)
-    })
-
-  activeGeneration = { session, promise }
-  return promise
+  return storyGenerationJobQueue.enqueue(
+    input,
+    buildGenerationInputKey(input),
+    (jobInput, signal) => run(jobInput, signal),
+    options,
+  )
 }
 
 export function cancelActiveStoryGeneration(): boolean {
-  if (!activeGeneration) {
-    return false
-  }
+  return storyGenerationJobQueue.cancel()
+}
 
-  abortGeneration(activeGeneration.session.abortController)
-  activeGeneration = null
-  return true
+export async function retryActiveStoryGeneration(): Promise<GeneratedStoryOutput> {
+  return storyGenerationJobQueue.retry()
+}
+
+export async function retryStoryGeneration(jobId: string): Promise<GeneratedStoryOutput> {
+  return storyGenerationJobQueue.retry(jobId)
 }
 
 export function isStoryGenerationActive(): boolean {
-  return activeGeneration !== null
+  return storyGenerationJobQueue.isActive()
 }
 
 export function getActiveStoryGenerationSessionId(): string | null {
-  return activeGeneration?.session.id ?? null
+  return storyGenerationJobQueue.getActiveJob()?.id ?? null
 }
 
 export function getActiveStoryGenerationInputKey(): string | null {
-  return activeGeneration?.session.inputKey ?? null
+  return storyGenerationJobQueue.getActiveJob()?.inputKey ?? null
+}
+
+export function getActiveStoryGenerationJob(): GenerationJob<
+  StoryGenerationInput,
+  GeneratedStoryOutput
+> | null {
+  return storyGenerationJobQueue.getActiveJob()
+}
+
+export function getLastStoryGenerationJob(): GenerationJob<
+  StoryGenerationInput,
+  GeneratedStoryOutput
+> | null {
+  return storyGenerationJobQueue.getLastJob()
+}
+
+export function getStoryGenerationJobStatus() {
+  return storyGenerationJobQueue.getStatus()
+}
+
+export function getStoryGenerationJobSnapshot() {
+  return storyGenerationJobQueue.getSnapshot()
+}
+
+export function clearStoryGenerationJobs(): void {
+  storyGenerationJobQueue.clear()
 }

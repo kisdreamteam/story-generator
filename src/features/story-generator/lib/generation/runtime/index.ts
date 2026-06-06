@@ -14,12 +14,19 @@ export {
 } from './generationSession'
 
 export {
-  GenerationBusyError,
   cancelActiveStoryGeneration,
+  clearStoryGenerationJobs,
   enqueueStoryGeneration,
+  GenerationBusyError,
   getActiveStoryGenerationInputKey,
+  getActiveStoryGenerationJob,
   getActiveStoryGenerationSessionId,
+  getLastStoryGenerationJob,
+  getStoryGenerationJobSnapshot,
+  getStoryGenerationJobStatus,
   isGenerationBusyError,
   isStoryGenerationActive,
+  retryActiveStoryGeneration,
+  retryStoryGeneration,
   type EnqueueStoryGenerationOptions,
 } from './generationQueue'

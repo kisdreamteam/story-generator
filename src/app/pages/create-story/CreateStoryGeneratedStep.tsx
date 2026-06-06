@@ -1,19 +1,30 @@
-import { AppButton } from '@/shared/components'
-import { useGenerationErrors, useGenerationStatus, useIsGenerating } from '@/features/story-generator'
+import { AppButton, ErrorState, SaveStatusIndicator } from '@/shared/components'
+import type { SaveStatus } from '@/shared/lib/autosave/saveStatus'
+import {
+  useGenerationFailureState,
+  useGenerationStatus,
+  useIsGenerating,
+} from '@/features/story-generator'
 import {
   StoryEmptyState,
   StoryGenerationLoading,
+  StoryGenerationRecovery,
   StoryOutputActions,
   StoryReadOnlyView,
+  StoryStatusBadge,
   type GeneratedStory,
   type StorySetupInput,
 } from '@/features/stories'
+import { getCreateFlowStoryStatusLabel } from '@/features/stories/utils/storyStatus'
 
 interface CreateStoryGeneratedStepProps {
   generatedStory: GeneratedStory | null
   setupData: StorySetupInput | null
   storySaved: boolean
   saveError: string | null
+  isSavingStory?: boolean
+  isMutating?: boolean
+  isRetrying?: boolean
   showStartOverInHeader: boolean
   onSaveStory: () => void
   onViewStory: () => void
@@ -21,6 +32,10 @@ interface CreateStoryGeneratedStepProps {
   onExportStory: () => void
   onStartOver: () => void
   onBackToReview: () => void
+  onRetryGeneration?: () => void
+  onCancelGeneration?: () => void
+  onDismissRecovery?: () => void
+  saveStatus?: SaveStatus
 }
 
 export function CreateStoryGeneratedStep({
@@ -28,6 +43,9 @@ export function CreateStoryGeneratedStep({
   setupData,
   storySaved,
   saveError,
+  isSavingStory = false,
+  isMutating = false,
+  isRetrying = false,
   showStartOverInHeader,
   onSaveStory,
   onViewStory,
@@ -35,43 +53,86 @@ export function CreateStoryGeneratedStep({
   onExportStory,
   onStartOver,
   onBackToReview,
+  onRetryGeneration,
+  onCancelGeneration,
+  onDismissRecovery,
+  saveStatus = 'idle',
 }: CreateStoryGeneratedStepProps) {
   const isGenerating = useIsGenerating()
   const generationStatus = useGenerationStatus()
-  const generationErrors = useGenerationErrors()
+  const failureState = useGenerationFailureState()
 
-  const generationError = generationStatus === 'error' ? generationErrors[0] : null
+  const showRecovery =
+    isGenerating ||
+    generationStatus === 'error' ||
+    Boolean(failureState.message) ||
+    failureState.cancelled
+
+  const statusLabel = getCreateFlowStoryStatusLabel({
+    step: 'generated',
+    hasGeneratedStory: Boolean(generatedStory),
+    storySaved,
+  })
+  const isBusy = isGenerating || isSavingStory || isMutating || isRetrying
+  const showPartialPreview = Boolean(generatedStory) && failureState.hasPartialContent
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5 px-1 sm:px-0">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-stone-900">Generated story preview</h2>
-          <p className="mt-1 text-sm text-stone-600">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-stone-900 sm:text-xl">Your new story</h2>
+            {statusLabel && !isGenerating ? <StoryStatusBadge label={statusLabel} /> : null}
+            {!isGenerating ? <SaveStatusIndicator status={saveStatus} /> : null}
+          </div>
+          <p className="text-sm leading-relaxed text-stone-600">
             {isGenerating
-              ? 'Creating your story preview…'
+              ? 'Hang tight — we are writing your pages, vocabulary cards, and illustration notes from your plan.'
               : generatedStory
-                ? 'Review your story below, then save it to open the full story page.'
-                : 'Confirm your story plan to generate a preview.'}
+                ? showPartialPreview
+                  ? 'We kept the story content generated so far. Retry to finish, edit your plan, or save this draft.'
+                  : storySaved
+                    ? 'Open it from Your stories anytime.'
+                    : 'Read through everything below, then save to Your stories.'
+                : 'Your story plan is still here. Go back to review if you want to change anything before generating.'}
           </p>
         </div>
         {showStartOverInHeader && (
-          <AppButton type="button" variant="ghost" onClick={onStartOver}>
+          <AppButton
+            type="button"
+            variant="ghost"
+            onClick={onStartOver}
+            disabled={isBusy}
+            className="self-start"
+          >
             Start over
           </AppButton>
         )}
       </div>
 
-      {generationError && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-          {generationError}
-        </p>
-      )}
+      {showRecovery ? (
+        <StoryGenerationRecovery
+          failureKind={failureState.kind}
+          message={failureState.message ?? ''}
+          canRetry={failureState.canRetry}
+          hasPartialContent={failureState.hasPartialContent}
+          cancelled={failureState.cancelled}
+          isGenerating={isGenerating}
+          isRetrying={isRetrying}
+          onRetry={onRetryGeneration}
+          onEditPlan={setupData ? onBackToReview : undefined}
+          onCancel={onCancelGeneration}
+          onDismiss={onDismissRecovery}
+        />
+      ) : null}
 
       {saveError && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
-          {saveError}
-        </p>
+        <ErrorState
+          variant="inline"
+          tone="warning"
+          title="Could not save your story"
+          description={saveError}
+        />
       )}
 
       {isGenerating ? (
@@ -85,18 +146,36 @@ export function CreateStoryGeneratedStep({
             onExportStory={onExportStory}
             onStartOver={onStartOver}
             storySaved={storySaved}
+            isSavingStory={isSavingStory}
+            isBusy={isBusy}
           />
-          <StoryReadOnlyView story={generatedStory} />
+          <StoryReadOnlyView
+            story={generatedStory}
+            showUnsavedHint={!storySaved}
+            savedToLibrary={storySaved}
+          />
         </>
       ) : (
         <StoryEmptyState
-          title={generationError ? 'Story generation failed' : 'No story generated yet'}
-          description={
-            generationError
-              ? 'Go back to review and try again. Mock mode still works when AI is unavailable.'
-              : 'Confirm your story plan to create a preview.'
+          title={
+            generationStatus === 'error'
+              ? 'Story creation did not finish'
+              : 'Your story is not ready yet'
           }
-          actionLabel={setupData ? 'Back to review' : undefined}
+          description={
+            generationStatus === 'error'
+              ? 'Your story plan is still here. Edit your plan and try again, or save your plan and return later.'
+              : 'Generate your story from the review step to see pages here.'
+          }
+          hints={
+            generationStatus === 'error'
+              ? [
+                  'Save your story plan first if you need a break.',
+                  'Try simplifying vocabulary or events if creation keeps failing.',
+                ]
+              : undefined
+          }
+          actionLabel={setupData ? 'Edit story plan' : undefined}
           onAction={setupData ? onBackToReview : undefined}
         />
       )}

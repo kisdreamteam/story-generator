@@ -1,4 +1,6 @@
 import type { StoryProject } from '../../types/story-generator.types'
+import { productAnalytics } from '@/shared/lib/analytics'
+import { formatTeacherFacingMigrationCopyFailure } from '../story-route-guards'
 import { localStoryStorageAdapter } from '../storage/localStoryStorageAdapter'
 import {
   getLocalCloudMigrationEntry,
@@ -51,9 +53,19 @@ export async function copyLocalStoriesToCloud(
       result.failed.push({
         localId: story.id,
         title: story.title?.trim() || 'Untitled story',
-        error: error instanceof Error ? error.message : 'Could not copy story',
+        error: formatTeacherFacingMigrationCopyFailure(
+          error instanceof Error ? error.message : 'Could not copy story',
+        ),
       })
     }
+  }
+
+  if (result.copied > 0 || result.skipped > 0 || result.failed.length > 0) {
+    productAnalytics.migrationCompleted({
+      copied: result.copied,
+      skipped: result.skipped,
+      failed: result.failed.length,
+    })
   }
 
   return result

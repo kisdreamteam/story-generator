@@ -1,13 +1,33 @@
 export { formatStoryDate, getStoryStatusBadgeClasses } from './storyFormat'
 export { cloneGeneratedStory, countStoryWords, withRecalculatedWordCounts } from './storyEdit'
+export {
+  assertStoryValidForSave,
+  getStorySaveValidationMessages,
+  getStorySaveValidationSummary,
+  isStorySaveValidationFailure,
+  STORY_SAVE_VALIDATION_DEFAULTS,
+  StorySaveValidationCode,
+  StorySaveValidationFailure,
+  toSafeSaveStoryFailure,
+  validateStoryForSave,
+} from './storyValidation'
+export type {
+  SafeSaveStoryFailure,
+  SafeSaveStoryResult,
+  SafeSaveStorySuccess,
+  StorySaveValidationError,
+  StorySaveValidationResult,
+  ValidateStoryForSaveOptions,
+} from './storyValidation'
+export { areStorySetupFormValuesEqual, areStorySetupInputsEqual } from './storySetupForm'
 export { attachGeneratedStoryToProject } from './attachGeneratedStoryToProject'
-export { mockGeneratedStory, mockStoryProject } from './mockStory'
+export { mockGeneratedStory } from './mockStory'
 export {
   getStoryProjectActionLabel,
   getStoryProjectStatusLabel,
   generatedStoryFromProject,
   hasGeneratedStoryContent,
-} from './storyProjectDisplay'
+} from '@/features/story-generator/lib/story-project'
 export {
   buildStorySetupReviewSections,
   mapStorySetupFormToInput,
@@ -16,6 +36,12 @@ export {
   storyPageCountOptions,
 } from './storySetupForm'
 export { createDraftProjectFromSetup } from './createDraftProjectFromSetup'
+export { buildDuplicatedStoryPlanProject, buildDuplicatedStoryProject } from './duplicateStoryProject'
+export {
+  getCreateFlowStoryStatusLabel,
+  getStoryStatusLabel,
+  getStoryStatusLabelForProject,
+} from './storyStatus'
 export type { StorySetupFormValues, StorySetupReviewField, StorySetupReviewSection } from './storySetupForm'
 export {
   clearStoryDrafts,
@@ -24,4 +50,4 @@ export {
   getStoryDrafts,
   saveStoryDraft,
   STORY_DRAFTS_STORAGE_KEY,
-} from './storyStorage'
+} from '@/features/story-generator/lib/story-storage'

@@ -1,4 +1,10 @@
-export { generateStory, cancelStoryGeneration } from './storyGenerationService'
+export {
+  generateStory,
+  cancelStoryGeneration,
+  retryStoryGenerationJob,
+  getRecoverablePartialOutput,
+  isGenerationRecoveryError,
+} from './storyGenerationService'
 export { persistGeneratedStory } from './persistGeneratedStory'
 export {
   assertValidGeneratedStoryOutput,
@@ -14,4 +20,5 @@ export {
   type GeneratedStoryOutput,
   type GeneratedStoryPageOutput,
   type StoryGenerationInput,
+  type StoryGenerationMetadata,
 } from './types'

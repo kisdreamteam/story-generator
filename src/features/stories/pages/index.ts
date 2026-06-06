@@ -1,3 +1,1 @@
-/** Route entry points for the stories feature (Phase 3+). */
-
-export {}
+export { StoryDetailPage } from './StoryDetailPage'

@@ -1,5 +1,5 @@
 import { useShallow } from 'zustand/react/shallow'
-import { useGenerationStore, type GenerationStatus } from '../stores/useGenerationStore'
+import { useGenerationStore, type GenerationFailureState, type GenerationStatus } from '../stores/useGenerationStore'
 
 export function useGenerationStatus(): GenerationStatus {
   return useGenerationStore((state) => state.status)
@@ -15,6 +15,18 @@ export function useGenerationProgress(): number {
 
 export function useGenerationErrors(): string[] {
   return useGenerationStore((state) => state.errors)
+}
+
+export function useGenerationFailureState(): GenerationFailureState {
+  return useGenerationStore(
+    useShallow((state) => ({
+      kind: state.kind,
+      message: state.message,
+      canRetry: state.canRetry,
+      hasPartialContent: state.hasPartialContent,
+      cancelled: state.cancelled,
+    })),
+  )
 }
 
 export function useGenerationActions() {

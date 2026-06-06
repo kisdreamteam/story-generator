@@ -1,5 +1,7 @@
 import type { StoryProject } from '../../types/story-generator.types'
 import { generatedStoryFromProject } from '../story-project'
+import type { GeneratedStory } from '@/features/stories/types'
+import { mergeGeneratedStoryUpdate } from './mergeStoryUpdate'
 import type { LoadDraftWithGeneratedStoryResult, StoryStorageAdapter, StoryStorageAdapterAsync } from './StoryStorageAdapter'
 
 export const STORY_DRAFTS_STORAGE_KEY = 'story-drafts'
@@ -65,6 +67,22 @@ export const localStoryStorageAdapter: StoryStorageAdapter = {
     }
   },
 
+  updateStory(id: string, generatedStory: GeneratedStory): StoryProject | null {
+    try {
+      if (!id) return null
+
+      const existing = readDrafts().find((draft) => draft.id === id) ?? null
+      if (!existing) return null
+
+      const updated = mergeGeneratedStoryUpdate(existing, generatedStory)
+      localStoryStorageAdapter.saveStoryDraft(updated)
+
+      return localStoryStorageAdapter.getStoryDraft(id) ?? updated
+    } catch {
+      return null
+    }
+  },
+
   getStoryDrafts(): StoryProject[] {
     return readDrafts()
   },
@@ -80,14 +98,17 @@ export const localStoryStorageAdapter: StoryStorageAdapter = {
   },
 
   deleteStoryDraft(id: string): void {
-    try {
-      if (!id) return
-
-      const drafts = readDrafts().filter((draft) => draft.id !== id)
-      writeDrafts(drafts)
-    } catch {
-      // Fail safely.
+    if (!id) {
+      throw new Error('Cannot delete story without an id.')
     }
+
+    const drafts = readDrafts()
+    const exists = drafts.some((draft) => draft.id === id)
+    if (!exists) {
+      throw new Error(`Story not found: ${id}`)
+    }
+
+    writeDrafts(drafts.filter((draft) => draft.id !== id))
   },
 
   clearStoryDrafts(): void {
@@ -124,6 +145,13 @@ export const localStoryStorageAdapterAsync: StoryStorageAdapterAsync = {
   saveStoryDraft: async (project) => {
     localStoryStorageAdapter.saveStoryDraft(project)
     return localStoryStorageAdapter.getStoryDraft(project.id) ?? project
+  },
+  updateStory: async (id, generatedStory) => {
+    const updated = localStoryStorageAdapter.updateStory(id, generatedStory)
+    if (!updated) {
+      throw new Error(`Story not found: ${id}`)
+    }
+    return updated
   },
   deleteStoryDraft: (id) => Promise.resolve(localStoryStorageAdapter.deleteStoryDraft(id)),
   clearStoryDrafts: () => Promise.resolve(localStoryStorageAdapter.clearStoryDrafts()),

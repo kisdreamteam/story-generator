@@ -12,6 +12,7 @@ export function isSupabaseStoriesEnabled(): boolean {
 }
 
 function logAdapterChoice(kind: AdapterKind): void {
+  if (!import.meta.env.DEV) return
   if (lastLoggedKind === kind) return
   lastLoggedKind = kind
   console.info(`[Story Storage] Using ${kind} adapter`)

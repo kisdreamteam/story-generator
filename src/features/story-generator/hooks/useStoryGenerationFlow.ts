@@ -1,9 +1,13 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { classifyGenerationFailure } from '@/shared/ai/recovery'
+import { storyFeedback } from '@/shared/feedback'
 import {
   cancelStoryGeneration,
   generateStory,
+  getRecoverablePartialOutput,
   isGenerationAbortedError,
+  retryStoryGenerationJob,
   storyGenerationInputFromSetup,
 } from '../lib/generation'
 import { persistGeneratedStory } from '../lib/generation/persistGeneratedStory'
@@ -41,6 +45,32 @@ export function useStoryGenerationFlow() {
     [activeDraftId, createdAt, saveDraft],
   )
 
+  const applyRecoveryState = useCallback(
+    (generationId: string, error: unknown) => {
+      const partialOutput = getRecoverablePartialOutput(error)
+
+      if (partialOutput) {
+        workflow.setGeneratedStory(partialOutput)
+      }
+
+      const failure = classifyGenerationFailure(error)
+      failGeneration(generationId, {
+        message: failure.message,
+        kind: failure.kind,
+        canRetry: failure.retryable,
+        hasPartialContent: failure.hasPartialContent || Boolean(partialOutput),
+        cancelled: failure.kind === 'cancelled',
+      })
+
+      if (failure.kind === 'cancelled') {
+        return
+      }
+
+      storyFeedback.generationFailed(failure.message)
+    },
+    [failGeneration, workflow],
+  )
+
   const runGeneration = useCallback(
     async (setupData: StorySetupInput): Promise<GeneratedStoryOutput> => {
       const generationId = startGeneration()
@@ -51,17 +81,40 @@ export function useStoryGenerationFlow() {
         finishGeneration(generationId)
         return output
       } catch (error) {
+        applyRecoveryState(generationId, error)
+
         if (isGenerationAbortedError(error)) {
           throw error
         }
 
-        const message =
-          error instanceof Error ? error.message : 'Story generation failed unexpectedly.'
-        failGeneration(generationId, message)
         throw error
       }
     },
-    [failGeneration, finishGeneration, startGeneration, workflow],
+    [applyRecoveryState, finishGeneration, startGeneration, workflow],
+  )
+
+  const retryGeneration = useCallback(
+    async (setupData: StorySetupInput): Promise<GeneratedStoryOutput> => {
+      const generationId = startGeneration()
+
+      try {
+        const output = await retryStoryGenerationJob()
+        workflow.setGeneratedStory(output)
+        finishGeneration(generationId)
+        return output
+      } catch (error) {
+        try {
+          const output = await generateStory(storyGenerationInputFromSetup(setupData))
+          workflow.setGeneratedStory(output)
+          finishGeneration(generationId)
+          return output
+        } catch (retryError) {
+          applyRecoveryState(generationId, retryError)
+          throw retryError
+        }
+      }
+    },
+    [applyRecoveryState, finishGeneration, startGeneration, workflow],
   )
 
   const cancelGeneration = useCallback(() => {
@@ -70,6 +123,7 @@ export function useStoryGenerationFlow() {
 
   return {
     runGeneration,
+    retryGeneration,
     saveGeneratedStory,
     navigateToStoryDetail,
     cancelGeneration,

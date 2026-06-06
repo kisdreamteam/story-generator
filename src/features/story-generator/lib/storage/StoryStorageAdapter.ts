@@ -10,6 +10,8 @@ export interface StoryStorageAdapter {
   getStoryDraft(id: string): StoryProject | null
   getStoryDrafts(): StoryProject[]
   saveStoryDraft(project: StoryProject): void
+  /** Persist edited generated content for an existing story. Preserves id, createdAt, and setup. */
+  updateStory(id: string, generatedStory: GeneratedStory): StoryProject | null
   deleteStoryDraft(id: string): void
   clearStoryDrafts(): void
   loadDraftWithGeneratedStory(id: string): LoadDraftWithGeneratedStoryResult | null
@@ -20,6 +22,8 @@ export interface StoryStorageAdapterAsync {
   getStoryDraft(id: string): Promise<StoryProject | null>
   getStoryDrafts(): Promise<StoryProject[]>
   saveStoryDraft(project: StoryProject): Promise<StoryProject>
+  /** Persist edited generated content for an existing story. Preserves id, createdAt, and setup. */
+  updateStory(id: string, generatedStory: GeneratedStory): Promise<StoryProject>
   deleteStoryDraft(id: string): Promise<void>
   clearStoryDrafts(): Promise<void>
   loadDraftWithGeneratedStory(id: string): Promise<LoadDraftWithGeneratedStoryResult | null>

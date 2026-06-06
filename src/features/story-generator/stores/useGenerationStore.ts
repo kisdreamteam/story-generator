@@ -1,16 +1,41 @@
 import { create } from 'zustand'
+import type { GenerationFailureKind } from '@/shared/ai/recovery'
 
 export type GenerationStatus = 'idle' | 'generating' | 'success' | 'error'
 
-interface GenerationState {
+export interface GenerationFailureState {
+  kind: GenerationFailureKind | null
+  message: string | null
+  canRetry: boolean
+  hasPartialContent: boolean
+  cancelled: boolean
+}
+
+interface FailGenerationInput {
+  message: string
+  kind: GenerationFailureKind
+  canRetry: boolean
+  hasPartialContent: boolean
+  cancelled?: boolean
+}
+
+interface GenerationState extends GenerationFailureState {
   status: GenerationStatus
   progress: number
   errors: string[]
   activeGenerationId: string | null
   startGeneration: () => string
   finishGeneration: (generationId: string) => void
-  failGeneration: (generationId: string, error: string) => void
+  failGeneration: (generationId: string, failure: FailGenerationInput) => void
   resetGeneration: () => void
+}
+
+const initialFailureState: GenerationFailureState = {
+  kind: null,
+  message: null,
+  canRetry: false,
+  hasPartialContent: false,
+  cancelled: false,
 }
 
 export const useGenerationStore = create<GenerationState>((set, get) => ({
@@ -18,6 +43,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   progress: 0,
   errors: [],
   activeGenerationId: null,
+  ...initialFailureState,
 
   startGeneration: () => {
     const current = get()
@@ -33,6 +59,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       progress: 0,
       errors: [],
       activeGenerationId: generationId,
+      ...initialFailureState,
     })
 
     return generationId
@@ -49,11 +76,12 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         progress: 100,
         errors: [],
         activeGenerationId: null,
+        ...initialFailureState,
       }
     })
   },
 
-  failGeneration: (generationId, error) => {
+  failGeneration: (generationId, failure) => {
     set((state) => {
       if (state.activeGenerationId !== generationId) {
         return state
@@ -62,8 +90,13 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       return {
         status: 'error',
         progress: 0,
-        errors: [error],
+        errors: [failure.message],
         activeGenerationId: null,
+        kind: failure.kind,
+        message: failure.message,
+        canRetry: failure.canRetry,
+        hasPartialContent: failure.hasPartialContent,
+        cancelled: failure.cancelled ?? false,
       }
     })
   },
@@ -74,6 +107,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       progress: 0,
       errors: [],
       activeGenerationId: null,
+      ...initialFailureState,
     })
   },
 }))

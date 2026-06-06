@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import {
   AppButton,
   ErrorState,
+  LoadingStoryPage,
   PageHeader,
 } from '../../../shared/components'
 import { OutputActionsBar } from '../components/OutputActionsBar'
@@ -15,7 +16,6 @@ import { OutputDebugPanel } from '../components/OutputDebugPanel'
 import { ProjectSummaryPanel } from '../components/ProjectSummaryPanel'
 import { GenerationModeBadge } from '../components/GenerationModeBadge'
 import { FallbackStoryNotice } from '../components/FallbackStoryNotice'
-import { StoryGenerationLoadingState } from '../components/StoryGenerationLoadingState'
 import { FALLBACK_STORY_NOTICE_MESSAGE } from '../config/fallbackStoryNotice'
 import { useStoryOutput } from '../hooks/useStoryOutput'
 import { useOutputReviewTabs } from '../hooks/useOutputReviewTabs'
@@ -50,11 +50,11 @@ export function StoryOutputPage() {
     return (
       <>
         <PageHeader
-          title="Generating Story"
-          description="Your Nina & Nino story is being created from your setup."
+          title="Generating story"
+          description="Your Nina & Nino story is being created from your plan."
         />
         <div className="mt-6">
-          <StoryGenerationLoadingState />
+          <LoadingStoryPage variant="generation" />
         </div>
       </>
     )
@@ -64,13 +64,15 @@ export function StoryOutputPage() {
     return (
       <>
         <PageHeader
-          title="Story Output Unavailable"
-          description="We could not display a valid story for this project."
+          title="Story not available"
+          description="We could not show a finished story for this project."
         />
         <div className="mt-6">
           <ErrorState
             title="Unable to load story output"
-            description={outputError ?? 'Something went wrong while loading this story.'}
+            description={
+              outputError ?? 'Something went wrong while loading this story. Try again from your project.'
+            }
           >
             <Link to="/dashboard">
               <AppButton variant="secondary">Back to Dashboard</AppButton>

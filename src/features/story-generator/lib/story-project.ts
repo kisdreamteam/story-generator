@@ -1,4 +1,5 @@
 import type { GeneratedStory, StoryProject } from '../types/story-generator.types'
+import { getStoryStatusLabelForProject } from '@/features/stories/utils/storyStatus'
 
 export function hasGeneratedStoryContent(project: StoryProject): boolean {
   return Boolean(project.generatedStory) || project.storyPages.length > 0
@@ -32,9 +33,7 @@ export function getStoryProjectStatusLabel(
   project: StoryProject,
   options?: { mockSample?: boolean },
 ): string {
-  if (options?.mockSample) return 'Mock draft'
-  if (hasGeneratedStoryContent(project)) return 'Saved story'
-  return 'Draft'
+  return getStoryStatusLabelForProject(project, options)
 }
 
 /** Primary card action label for a local saved project. */

@@ -1,6 +1,10 @@
 import type { PostgrestError } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/shared/lib/supabase/supabaseClient'
 import { ensureProfileRow } from '@/shared/lib/supabase/ensureProfileRow'
+import {
+  clearStoryIdMappings,
+  getLocalCloudMigrationEntry,
+} from '../migration/localStoryMigrationMap'
 import type {
   GeneratedStory,
   StoryFlashcard,
@@ -8,9 +12,12 @@ import type {
   StoryPage,
   StoryProject,
   StorySetupInput,
+  StoryGenerationMetadata,
 } from '../../types/story-generator.types'
 import type { StoryPlanReview } from '@/features/stories/types'
+import { normalizeStoryGenerationMetadata } from '@/shared/ai/metadata'
 import { generatedStoryFromProject, hasGeneratedStoryContent } from '../story-project'
+import { mergeGeneratedStoryUpdate } from './mergeStoryUpdate'
 import type { LoadDraftWithGeneratedStoryResult, StoryStorageAdapterAsync } from './StoryStorageAdapter'
 
 /**
@@ -78,6 +85,7 @@ interface SetupDataJson {
 
 interface GeneratedMetadataJson {
   generatedStory?: GeneratedStory
+  generationMetadata?: StoryGenerationMetadata
   title?: string
   summary?: string
   totalWordCount?: number
@@ -97,16 +105,38 @@ function isUuid(value: string): boolean {
   return UUID_RE.test(value)
 }
 
+/** Resolve a route or draft id to the cloud UUID when one exists locally. */
+function resolveCloudProjectId(id: string): string {
+  if (isUuid(id)) return id
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const storageKey = `${CLOUD_ID_MAP_PREFIX}${id}`
+      const mapped = sessionStorage.getItem(storageKey)
+      if (mapped && isUuid(mapped)) return mapped
+    }
+  } catch {
+    // sessionStorage unavailable — fall through.
+  }
+
+  const migrationEntry = getLocalCloudMigrationEntry(id)
+  if (migrationEntry?.cloudId && isUuid(migrationEntry.cloudId)) {
+    return migrationEntry.cloudId
+  }
+
+  return id
+}
+
 /** Map local draft ids (e.g. draft-*) to a stable cloud UUID for repeat saves in this browser. */
 function resolveProjectId(project: StoryProject): string {
   if (isUuid(project.id)) return project.id
 
+  const mappedId = resolveCloudProjectId(project.id)
+  if (isUuid(mappedId)) return mappedId
+
   try {
     if (typeof sessionStorage !== 'undefined') {
       const storageKey = `${CLOUD_ID_MAP_PREFIX}${project.id}`
-      const mapped = sessionStorage.getItem(storageKey)
-      if (mapped && isUuid(mapped)) return mapped
-
       const cloudId = crypto.randomUUID()
       sessionStorage.setItem(storageKey, cloudId)
       return cloudId
@@ -136,7 +166,10 @@ function toSetupDataJson(project: StoryProject): SetupDataJson {
 
 function toGeneratedMetadataJson(project: StoryProject): GeneratedMetadataJson {
   if (project.generatedStory) {
-    return { generatedStory: project.generatedStory }
+    return {
+      generatedStory: project.generatedStory,
+      generationMetadata: project.generationMetadata,
+    }
   }
 
   if (!hasGeneratedStoryContent(project)) {
@@ -277,6 +310,7 @@ function buildStoryProjectFromRows(
     setup: setupData.setup ?? undefined,
     planReview: setupData.planReview ?? undefined,
     generatedStory,
+    generationMetadata: normalizeStoryGenerationMetadata(generatedMeta.generationMetadata) ?? undefined,
   }
 }
 
@@ -566,16 +600,44 @@ export const supabaseStoryStorageAdapter: StoryStorageAdapterAsync = {
     }
   },
 
+  async updateStory(id: string, generatedStory: GeneratedStory): Promise<StoryProject> {
+    if (!id) {
+      throw new Error('Cannot update story without an id.')
+    }
+
+    await requireUserId()
+    const existing = await loadStoryProjectById(id)
+
+    if (!existing) {
+      throw new Error(`Story not found: ${id}`)
+    }
+
+    const updated = mergeGeneratedStoryUpdate(existing, generatedStory)
+    return supabaseStoryStorageAdapter.saveStoryDraft(updated)
+  },
+
   async deleteStoryDraft(id: string): Promise<void> {
-    if (!id) return
+    if (!id) {
+      throw new Error('Cannot delete story without an id.')
+    }
 
     await requireUserId()
     const supabase = getSupabaseClient()
+    const projectId = resolveCloudProjectId(id)
+    const existing = await loadStoryProjectById(projectId)
 
-    const { error } = await supabase.from('story_projects').delete().eq('id', id)
+    if (!existing) {
+      throw new Error(`Story not found: ${id}`)
+    }
+
+    const { error } = await supabase.from('story_projects').delete().eq('id', projectId)
 
     if (error) {
       throwSupabaseError(`Failed to delete story project ${id}`, error)
+    }
+
+    if (!isUuid(id)) {
+      clearStoryIdMappings(id)
     }
   },
 

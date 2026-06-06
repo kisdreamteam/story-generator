@@ -1,10 +1,11 @@
-import { PageHeader } from '@/shared/components'
+import { AppButton, ErrorState, LoadingStoryPage, PageHeader, SaveStatusIndicator } from '@/shared/components'
 import {
   StoryCreationProgress,
   StorySetupForm,
   StorySetupReview,
   type StoryCreationStep,
 } from '@/features/stories'
+import { TeacherTemplatePanel } from '@/features/teacher-templates'
 import { useGeneratedStory, useIsGenerating } from '@/features/story-generator'
 import { CreateStoryGeneratedStep } from './create-story/CreateStoryGeneratedStep'
 import { useCreateStoryPageState } from './create-story/useCreateStoryPageState'
@@ -14,18 +15,40 @@ export function CreateStoryPage() {
     step,
     setupData,
     formValues,
+    liveFormValues,
     formKey,
     draftSaved,
     draftLoadWarning,
+    draftSaveError,
+    isDraftLoading,
+    sessionRestored,
+    dismissSessionRestored,
+    saveStatus,
+    isSavingDraft,
+    isSavingStory,
+    isConfirming,
+    isRetryingGeneration,
     storySaved,
     saveError,
     showGeneratedPreview,
     handleFormSubmit,
+    handleFormValuesChange,
+    handleApplyTemplate,
+    handleSaveTemplate,
+    handleDeleteTemplate,
+    templateSummaries,
+    templatesLoading,
+    isSavingTemplate,
+    templateError,
+    selectedTemplateId,
     handleBackToEdit,
     handleSaveDraft,
     handleConfirm,
     handleStartOver,
     handleBackToReview,
+    handleRetryGeneration,
+    handleCancelGeneration,
+    handleDismissRecovery,
     handleSaveStory,
     handleViewStory,
     handleEditStory,
@@ -37,47 +60,107 @@ export function CreateStoryPage() {
 
   const pageDescription =
     step === 'form'
-      ? 'Plan your Nina & Nino story. Fill in the sections below — nothing is sent to AI yet.'
+      ? 'Tell us about your lesson — we will turn it into a classroom story.'
       : step === 'review'
-        ? 'Review your story plan before moving on to generation.'
+        ? 'Check your plan, save it for later, or generate your full story now.'
         : isGenerating
-          ? 'Creating your story preview…'
+          ? 'Creating your story — please keep this tab open.'
           : generatedStory
-            ? 'Your story preview is ready.'
-            : 'Confirm your story plan to generate a preview.'
+            ? storySaved
+              ? 'Your story is saved in Your stories. Open it anytime to read or edit.'
+              : 'Read through your story, then save it to Your stories.'
+            : 'Generate your story from the review step.'
 
   const progressStep: StoryCreationStep =
     step === 'form' ? 'setup' : step === 'review' ? 'review' : 'generated'
 
+  if (isDraftLoading) {
+    return (
+      <>
+        <PageHeader
+          title="Create story"
+          description="Loading your saved story plan from Your stories…"
+        />
+        <div className="mx-auto max-w-2xl px-1 sm:px-0">
+          <LoadingStoryPage variant="draft" />
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
-      <PageHeader title="Create Story" description={pageDescription} />
+      <PageHeader title="Create story" description={pageDescription} />
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between sm:px-0">
         <StoryCreationProgress currentStep={progressStep} />
+        <SaveStatusIndicator status={saveStatus} className="self-start sm:self-center" />
       </div>
+
+      {sessionRestored && (
+        <div className="mx-auto mb-4 flex max-w-2xl flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between sm:px-0">
+          <ErrorState
+            variant="inline"
+            tone="info"
+            description="We restored your in-progress work from this browser session."
+          />
+          <AppButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={dismissSessionRestored}
+            className="self-start sm:self-center"
+          >
+            Dismiss
+          </AppButton>
+        </div>
+      )}
 
       {step === 'form' && (
         <>
           {draftLoadWarning && (
-            <p
-              className="mx-auto mb-4 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-              role="status"
-            >
-              {draftLoadWarning}
-            </p>
+            <div className="mx-auto mb-4 max-w-2xl px-1 sm:px-0">
+              <ErrorState
+                variant="inline"
+                tone="warning"
+                title="Story plan not found"
+                description={draftLoadWarning}
+              />
+            </div>
           )}
-          <StorySetupForm key={formKey} initialValues={formValues} onSubmit={handleFormSubmit} />
+          <div className="mx-auto mb-6 max-w-2xl px-1 sm:px-0">
+            <TeacherTemplatePanel
+              templates={templateSummaries}
+              selectedTemplateId={selectedTemplateId}
+              onApplyTemplate={handleApplyTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
+              formValues={liveFormValues}
+              isLoading={templatesLoading}
+              isSaving={isSavingTemplate}
+              error={templateError}
+              onSave={handleSaveTemplate}
+            />
+          </div>
+          <StorySetupForm
+            key={formKey}
+            initialValues={formValues}
+            onValuesChange={handleFormValuesChange}
+            onSubmit={handleFormSubmit}
+          />
         </>
       )}
 
       {step === 'review' && setupData && (
         <StorySetupReview
           setupData={setupData}
+          draftSaved={draftSaved}
           onBack={handleBackToEdit}
           onConfirm={handleConfirm}
           onSaveDraft={handleSaveDraft}
-          draftSaved={draftSaved}
+          isSavingDraft={isSavingDraft}
+          isConfirming={isConfirming}
+          draftSaveError={draftSaveError}
+          saveStatus={saveStatus}
         />
       )}
 
@@ -87,6 +170,9 @@ export function CreateStoryPage() {
           setupData={setupData}
           storySaved={storySaved}
           saveError={saveError}
+          isSavingStory={isSavingStory}
+          isMutating={isConfirming}
+          isRetrying={isRetryingGeneration}
           showStartOverInHeader={!showGeneratedPreview}
           onSaveStory={handleSaveStory}
           onViewStory={handleViewStory}
@@ -94,6 +180,10 @@ export function CreateStoryPage() {
           onExportStory={handleExportStory}
           onStartOver={handleStartOver}
           onBackToReview={handleBackToReview}
+          onRetryGeneration={handleRetryGeneration}
+          onCancelGeneration={handleCancelGeneration}
+          onDismissRecovery={handleDismissRecovery}
+          saveStatus={saveStatus}
         />
       )}
     </>

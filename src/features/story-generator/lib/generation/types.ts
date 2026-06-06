@@ -1,4 +1,5 @@
 import type { StorySetupInput } from '@/features/stories/types'
+import type { StoryGenerationMetadata } from '@/shared/ai/metadata'
 
 /** Teacher setup passed into the generation boundary. */
 export interface StoryGenerationInput {
@@ -42,7 +43,11 @@ export interface GeneratedStoryOutput {
   imagePrompts: GeneratedImagePromptOutput[]
   totalWordCount: number
   generatedAt: string
+  /** Captured when generation completes — persisted with the saved story. */
+  generationMetadata?: StoryGenerationMetadata
 }
+
+export type { StoryGenerationMetadata }
 
 export function storyGenerationInputFromSetup(setup: StorySetupInput): StoryGenerationInput {
   return { setup }

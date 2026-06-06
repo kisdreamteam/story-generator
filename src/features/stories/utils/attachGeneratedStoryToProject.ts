@@ -1,9 +1,10 @@
-import type { GeneratedStory, StoryProject } from '../types'
+import type { GeneratedStory, StoryGenerationMetadata, StoryProject } from '../types'
 
 /** Merge generated output into a StoryProject before saving to localStorage. */
 export function attachGeneratedStoryToProject(
   project: StoryProject,
   generatedStory: GeneratedStory,
+  generationMetadata?: StoryGenerationMetadata,
 ): StoryProject {
   return {
     ...project,
@@ -13,6 +14,7 @@ export function attachGeneratedStoryToProject(
     flashcards: generatedStory.flashcards,
     imagePrompts: generatedStory.imagePrompts,
     generatedStory,
+    generationMetadata: generationMetadata ?? project.generationMetadata,
     updatedAt: new Date().toISOString(),
   }
 }

@@ -1,3 +1,5 @@
+import type { StoryGenerationMetadata } from '@/shared/ai/metadata'
+
 /** A single page of story text for classroom reading. */
 export interface StoryPage {
   pageNumber: number
@@ -58,6 +60,8 @@ export interface GeneratedStory {
   generatedAt: string
 }
 
+export type { StoryGenerationMetadata } from '@/shared/ai/metadata'
+
 /** A teacher's story project — metadata, setup, and optional generated output. */
 export interface StoryProject {
   id: string
@@ -83,4 +87,6 @@ export interface StoryProject {
   planReview?: StoryPlanReview
   /** Populated after successful generation. */
   generatedStory?: GeneratedStory
+  /** How the story was generated — optional for legacy projects. */
+  generationMetadata?: StoryGenerationMetadata
 }

@@ -27,6 +27,7 @@ export {
   getStoryDraft,
   getStoryDrafts,
   saveStoryDraft,
+  updateStory,
   STORY_DRAFTS_STORAGE_KEY,
 } from './lib/story-storage'
 
@@ -49,6 +50,7 @@ export {
 export {
   useGenerationActions,
   useGenerationErrors,
+  useGenerationFailureState,
   useGenerationProgress,
   useGenerationStatus,
   useIsGenerating,

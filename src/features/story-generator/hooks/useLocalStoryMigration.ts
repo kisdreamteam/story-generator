@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectPendingLocalStoryMigration } from '../lib/migration/detectLocalStoryMigration'
 import {
   dismissLocalStoryMigrationPrompt,
@@ -40,6 +40,7 @@ export function useLocalStoryMigration(): UseLocalStoryMigrationResult {
   const [pendingStories, setPendingStories] = useState<StoryProject[]>([])
   const [fingerprint, setFingerprint] = useState('')
   const [lastResult, setLastResult] = useState<LocalStoryMigrationCopyResult | null>(null)
+  const migratingRef = useRef(false)
 
   const recheck = useCallback(async () => {
     if (storageStatus.isLoading) {
@@ -92,28 +93,44 @@ export function useLocalStoryMigration(): UseLocalStoryMigrationResult {
   }, [fingerprint])
 
   const migrate = useCallback(async () => {
-    if (pendingStories.length === 0) return
+    if (pendingStories.length === 0 || migratingRef.current) return
 
+    migratingRef.current = true
     setUiState('migrating')
     setLastResult(null)
 
-    const result = await copyLocalStoriesToCloud(pendingStories)
-    setLastResult(result)
+    try {
+      const result = await copyLocalStoriesToCloud(pendingStories)
+      setLastResult(result)
 
-    if (result.failed.length === 0 && result.copied > 0) {
-      setUiState('success')
-      setPendingCount(0)
-      setPendingStories([])
-    } else if (result.failed.length > 0 && result.copied > 0) {
-      setUiState('partial_success')
-      const failedIds = new Set(result.failed.map((failure) => failure.localId))
-      const remaining = pendingStories.filter((story) => failedIds.has(story.id))
-      setPendingStories(remaining)
-      setPendingCount(remaining.length)
-    } else if (result.failed.length > 0) {
+      if (result.failed.length === 0 && result.copied > 0) {
+        setUiState('success')
+        setPendingCount(0)
+        setPendingStories([])
+      } else if (result.failed.length > 0 && result.copied > 0) {
+        setUiState('partial_success')
+        const failedIds = new Set(result.failed.map((failure) => failure.localId))
+        const remaining = pendingStories.filter((story) => failedIds.has(story.id))
+        setPendingStories(remaining)
+        setPendingCount(remaining.length)
+      } else if (result.failed.length > 0) {
+        setUiState('failed')
+      } else {
+        setUiState('idle')
+      }
+    } catch {
       setUiState('failed')
-    } else {
-      setUiState('idle')
+      setLastResult({
+        copied: 0,
+        skipped: 0,
+        failed: pendingStories.map((story) => ({
+          localId: story.id,
+          title: story.title?.trim() || 'Untitled story',
+          error: 'Could not copy',
+        })),
+      })
+    } finally {
+      migratingRef.current = false
     }
   }, [pendingStories])
 

@@ -56,10 +56,10 @@ export function getStorageStatusSnapshot(input: StorageStatusInput): StorageStat
       cloudEnabled: false,
       isLoading: false,
       reason: 'missing-configuration',
-      badgeLabel: 'This device',
+      badgeLabel: 'Saved here',
       message: isAuthenticated
-        ? 'Signed in, but cloud storage is not set up. Stories are saved locally on this device.'
-        : 'Stories are saved locally on this device.',
+        ? 'You are signed in. New stories save in this browser until online saving is set up.'
+        : 'Stories are saved in this browser on this computer.',
     }
   }
 
@@ -70,10 +70,10 @@ export function getStorageStatusSnapshot(input: StorageStatusInput): StorageStat
       cloudEnabled: false,
       isLoading: false,
       reason: 'feature-flag-disabled',
-      badgeLabel: 'This device',
+      badgeLabel: 'Saved here',
       message: isAuthenticated
-        ? 'Signed in, but cloud storage is disabled. Stories are saved locally on this device.'
-        : 'Stories are saved locally on this device.',
+        ? 'You are signed in. New stories save in this browser for now.'
+        : 'Stories are saved in this browser on this computer.',
     }
   }
 
@@ -85,7 +85,7 @@ export function getStorageStatusSnapshot(input: StorageStatusInput): StorageStat
       isLoading: false,
       reason: 'cloud-active',
       badgeLabel: 'Your account',
-      message: 'Stories are saving to your account.',
+      message: 'New stories save to your teacher account.',
     }
   }
 
@@ -95,7 +95,7 @@ export function getStorageStatusSnapshot(input: StorageStatusInput): StorageStat
     cloudEnabled: true,
     isLoading: false,
     reason: 'not-signed-in',
-    badgeLabel: 'This device',
-    message: 'Sign in to sync stories across devices.',
+    badgeLabel: 'Saved here',
+    message: 'Sign in to keep stories in your account and open them anywhere.',
   }
 }

@@ -1,3 +1,5 @@
+import { isAIProviderAbortedError } from '@/shared/ai'
+
 export class GenerationAbortedError extends Error {
   constructor(message = 'Story generation was cancelled.') {
     super(message)
@@ -6,7 +8,7 @@ export class GenerationAbortedError extends Error {
 }
 
 export function isGenerationAbortedError(error: unknown): error is GenerationAbortedError {
-  return error instanceof GenerationAbortedError
+  return error instanceof GenerationAbortedError || isAIProviderAbortedError(error)
 }
 
 export function createGenerationAbortController(): AbortController {
