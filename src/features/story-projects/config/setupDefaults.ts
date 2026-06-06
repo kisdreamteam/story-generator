@@ -1,6 +1,15 @@
 import { ninaNinoSeries } from '../../series/services/series.service'
 
 export const ninaNinoSetupDefaults = {
+  storyPurpose: 'Introduce vocabulary',
+  storyTone: 'Warm',
+  mainEvents: `Arrive at the farmers market with Mamá
+Meet friendly vendors and greet them politely
+Discover and name fruits, colors, and food items
+Practice new words together while exploring the stalls
+Walk home and share what they learned`,
+  wordsToInclude: '',
+  wordsToAvoid: '',
   theme: 'Everyday adventure with family',
   setting: 'Local farmers market and neighborhood streets',
   vocabularyFocus: 'Food, colors, and greetings',

@@ -5,8 +5,14 @@ import { ninaNinoSeries } from '../../series/services/series.service'
 import { buildStoryGenerationInput } from '../../story-generation/services/buildStoryGenerationInput'
 import { getGenerationSubmitUi } from '../../story-generation/services/generationSubmitUi.service'
 import { ninaNinoSetupDefaults } from '../config/setupDefaults'
+import { buildSetupReviewSections } from '../services/buildSetupReviewFields.service'
 import { getProjectById } from '../services/projects.service'
 import { waitForSetupSubmitTransition } from '../services/setupSubmitTransition.service'
+import {
+  hasStorySetupFormErrors,
+  validateStorySetupForm,
+} from '../services/validateStorySetupForm.service'
+import type { SetupProgressStep, StorySetupFormErrors } from '../types/storySetupForm.types'
 import { useProjectRouteState } from './useProjectRouteState'
 
 export function useStorySetupForm() {
@@ -17,18 +23,96 @@ export function useStorySetupForm() {
   const existingProject = projectId ? getProjectById(projectId) : undefined
   const projectTitle = routeState.title ?? existingProject?.title ?? 'Untitled Project'
 
+  const [storyPurpose, setStoryPurpose] = useState(ninaNinoSetupDefaults.storyPurpose)
+  const [storyTone, setStoryTone] = useState(ninaNinoSetupDefaults.storyTone)
+  const [mainEvents, setMainEvents] = useState(ninaNinoSetupDefaults.mainEvents)
+  const [wordsToInclude, setWordsToInclude] = useState(ninaNinoSetupDefaults.wordsToInclude)
+  const [wordsToAvoid, setWordsToAvoid] = useState(ninaNinoSetupDefaults.wordsToAvoid)
   const [theme, setTheme] = useState(ninaNinoSetupDefaults.theme)
   const [setting, setSetting] = useState(ninaNinoSetupDefaults.setting)
   const [vocabularyFocus, setVocabularyFocus] = useState(ninaNinoSetupDefaults.vocabularyFocus)
   const [learningGoal, setLearningGoal] = useState(ninaNinoSetupDefaults.learningGoal)
   const [pageCount, setPageCount] = useState(ninaNinoSetupDefaults.pageCount)
   const [notes, setNotes] = useState(ninaNinoSetupDefaults.notes)
+  const [showReview, setShowReview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<StorySetupFormErrors>({})
 
   const submitUi = useMemo(() => getGenerationSubmitUi(), [])
 
-  async function handleSubmit(e: FormEvent) {
+  const setupProgressStep = useMemo((): SetupProgressStep => {
+    if (isSubmitting) return 'generate'
+    if (showReview) return 'review'
+    return 'setup'
+  }, [isSubmitting, showReview])
+
+  const reviewSections = useMemo(
+    () =>
+      buildSetupReviewSections({
+        storyPurpose,
+        storyTone,
+        theme,
+        setting,
+        vocabularyFocus,
+        learningGoal,
+        pageCount,
+        mainEvents,
+        wordsToInclude,
+        wordsToAvoid,
+        notes,
+      }),
+    [
+      storyPurpose,
+      storyTone,
+      theme,
+      setting,
+      vocabularyFocus,
+      learningGoal,
+      pageCount,
+      mainEvents,
+      wordsToInclude,
+      wordsToAvoid,
+      notes,
+    ],
+  )
+
+  function clearFieldError(field: keyof StorySetupFormErrors) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (isSubmitting) return
+
+    const validationErrors = validateStorySetupForm({
+      theme,
+      setting,
+      vocabularyFocus,
+      learningGoal,
+      pageCount,
+      mainEvents,
+    })
+
+    if (hasStorySetupFormErrors(validationErrors)) {
+      setErrors(validationErrors)
+      setShowReview(false)
+      return
+    }
+
+    setErrors({})
+    setShowReview(true)
+  }
+
+  function handleBackToEdit() {
+    setShowReview(false)
+  }
+
+  async function handleConfirmGenerate() {
     if (isSubmitting) return
 
     setIsSubmitting(true)
@@ -38,6 +122,11 @@ export function useStorySetupForm() {
       seriesId: routeState.seriesId ?? existingProject?.seriesId ?? ninaNinoSeries.id,
       language: routeState.targetLanguage ?? existingProject?.targetLanguage,
       ageRange: routeState.ageGroup ?? existingProject?.ageGroup,
+      storyPurpose,
+      storyTone,
+      mainEvents,
+      wordsToInclude,
+      wordsToAvoid,
       theme,
       setting,
       vocabularyFocus,
@@ -60,22 +149,56 @@ export function useStorySetupForm() {
   return {
     projectId,
     projectTitle,
+    storyPurpose,
+    setStoryPurpose,
+    storyTone,
+    setStoryTone,
+    mainEvents,
+    setMainEvents: (value: string) => {
+      setMainEvents(value)
+      clearFieldError('mainEvents')
+    },
+    wordsToInclude,
+    setWordsToInclude,
+    wordsToAvoid,
+    setWordsToAvoid,
     theme,
-    setTheme,
+    setTheme: (value: string) => {
+      setTheme(value)
+      clearFieldError('theme')
+    },
     setting,
-    setSetting,
+    setSetting: (value: string) => {
+      setSetting(value)
+      clearFieldError('setting')
+    },
     vocabularyFocus,
-    setVocabularyFocus,
+    setVocabularyFocus: (value: string) => {
+      setVocabularyFocus(value)
+      clearFieldError('vocabularyFocus')
+    },
     learningGoal,
-    setLearningGoal,
+    setLearningGoal: (value: string) => {
+      setLearningGoal(value)
+      clearFieldError('learningGoal')
+    },
     pageCount,
-    setPageCount,
+    setPageCount: (value: string) => {
+      setPageCount(value)
+      clearFieldError('pageCount')
+    },
     notes,
     setNotes,
+    errors,
+    showReview,
+    setupProgressStep,
+    reviewSections,
     isSubmitting,
     submitButtonLabel: submitUi.buttonLabel,
     submitHelperText: submitUi.helperText,
     handleSubmit,
+    handleBackToEdit,
+    handleConfirmGenerate,
     handleCancel,
   }
 }

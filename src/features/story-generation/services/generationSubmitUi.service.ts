@@ -15,7 +15,7 @@ export function getGenerationSubmitUi(): GenerationSubmitUi {
     return {
       mode: 'mock',
       buttonLabel: 'Generate Mock Story',
-      helperText: 'This uses safe mock data for now.',
+      helperText: 'You will preview a sample story — safe for trying the workflow.',
     }
   }
 
@@ -23,13 +23,13 @@ export function getGenerationSubmitUi(): GenerationSubmitUi {
     return {
       mode: 'fixture',
       buttonLabel: 'Generate Story',
-      helperText: 'This tests the AI response pipeline with fixture data.',
+      helperText: 'You will preview a sample story built from test data.',
     }
   }
 
   return {
     mode: 'ai',
     buttonLabel: 'Generate Story',
-    helperText: 'Real AI generation will run through the backend API.',
+    helperText: 'Your story will be created through our server when connected.',
   }
 }

@@ -9,6 +9,11 @@ interface BuildStoryGenerationInputParams {
   seriesId?: string
   language?: string
   ageRange?: string
+  storyPurpose?: string
+  storyTone?: string
+  mainEvents?: string
+  wordsToInclude?: string
+  wordsToAvoid?: string
   theme?: string
   setting?: string
   vocabularyFocus?: string
@@ -22,6 +27,11 @@ export function buildStoryGenerationInput({
   seriesId = 'nina-nino',
   language,
   ageRange,
+  storyPurpose = ninaNinoSetupDefaults.storyPurpose,
+  storyTone = ninaNinoSetupDefaults.storyTone,
+  mainEvents = ninaNinoSetupDefaults.mainEvents,
+  wordsToInclude = ninaNinoSetupDefaults.wordsToInclude,
+  wordsToAvoid = ninaNinoSetupDefaults.wordsToAvoid,
   theme = ninaNinoSetupDefaults.theme,
   setting = ninaNinoSetupDefaults.setting,
   vocabularyFocus = ninaNinoSetupDefaults.vocabularyFocus,
@@ -37,6 +47,11 @@ export function buildStoryGenerationInput({
     seriesId: project?.seriesId ?? seriesId,
     language: language ?? project?.targetLanguage ?? DEFAULT_LANGUAGE,
     ageRange: ageRange ?? project?.ageGroup ?? '4-6',
+    storyPurpose,
+    storyTone,
+    mainEvents,
+    wordsToInclude,
+    wordsToAvoid,
     theme,
     setting,
     vocabularyFocus,

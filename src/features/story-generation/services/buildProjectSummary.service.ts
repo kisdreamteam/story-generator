@@ -13,6 +13,11 @@ export function buildProjectSummary(
     seriesName: series?.name ?? 'Unknown series',
     language: input.language,
     ageRange: input.ageRange,
+    storyPurpose: input.storyPurpose,
+    storyTone: input.storyTone,
+    mainEvents: input.mainEvents,
+    wordsToInclude: input.wordsToInclude,
+    wordsToAvoid: input.wordsToAvoid,
     theme: input.theme,
     setting: input.setting,
     vocabularyFocus: input.vocabularyFocus,
@@ -22,12 +27,22 @@ export function buildProjectSummary(
   }
 }
 
+function optionalSummaryField(label: string, value?: string): ProjectSummaryField[] {
+  if (!value?.trim()) return []
+  return [{ label, value: value.trim() }]
+}
+
 export function formatProjectSummaryFields(summary: ProjectSummary): ProjectSummaryField[] {
   return [
     { label: 'Project title', value: summary.projectTitle },
     { label: 'Series', value: summary.seriesName },
     { label: 'Language', value: summary.language },
     { label: 'Age range', value: summary.ageRange },
+    ...optionalSummaryField('Story purpose', summary.storyPurpose),
+    ...optionalSummaryField('Story tone', summary.storyTone),
+    ...optionalSummaryField('Main events', summary.mainEvents),
+    ...optionalSummaryField('Words to include', summary.wordsToInclude),
+    ...optionalSummaryField('Words to avoid', summary.wordsToAvoid),
     { label: 'Theme', value: summary.theme },
     { label: 'Setting', value: summary.setting },
     { label: 'Vocabulary focus', value: summary.vocabularyFocus },

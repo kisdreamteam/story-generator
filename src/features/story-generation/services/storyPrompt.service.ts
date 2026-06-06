@@ -55,21 +55,38 @@ function buildUserInstruction(
   seriesName: string,
   characterLines: string,
 ): string {
+  const mainEventLines = input.mainEvents
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `- ${line}`)
+    .join('\n')
+
   return [
     `Create a ${input.pageCount}-page story for the ${seriesName} series.`,
     '',
-    '## Story requirements',
-    `- Language: ${input.language} (generate in English by default)`,
-    `- Age range: ${input.ageRange}`,
+    '## Teacher intent',
+    `- Story purpose: ${input.storyPurpose}`,
+    `- Story tone: ${input.storyTone}`,
+    `- Main events / activities:`,
+    mainEventLines || '- None specified',
+    `- Words to include: ${input.wordsToInclude.trim() || 'None specified'}`,
+    `- Words to avoid: ${input.wordsToAvoid.trim() || 'None specified'}`,
+    '',
+    '## Story world',
     `- Theme: ${input.theme}`,
     `- Setting: ${input.setting}`,
+    '',
+    '## Language and learning',
+    `- Language: ${input.language} (generate in English by default)`,
+    `- Age range: ${input.ageRange}`,
     `- Vocabulary focus: ${input.vocabularyFocus}`,
     `- Learning goal: ${input.learningGoal}`,
     '',
     '## Characters',
     characterLines,
     '',
-    '## Teacher notes',
+    '## Additional teacher notes',
     input.notes || 'None provided.',
   ].join('\n')
 }

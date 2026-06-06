@@ -2,18 +2,42 @@ import { AppButton, AppCard, ComingSoonBadge, SectionCard } from '../../../share
 import type { GeneratedStoryPage } from '../types'
 
 interface TeacherNotesPanelProps {
+  storyPurpose: string
+  storyTone: string
   learningGoal: string
   vocabularyFocus: string
   pages: GeneratedStoryPage[]
 }
 
 export function TeacherNotesPanel({
+  storyPurpose,
+  storyTone,
   learningGoal,
   vocabularyFocus,
   pages,
 }: TeacherNotesPanelProps) {
   return (
     <div className="space-y-6">
+      <SectionCard
+        title="Teaching Intent"
+        description="Purpose and tone from your story setup"
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-stone-500">
+              Story purpose
+            </p>
+            <p className="mt-1 text-sm text-stone-800">{storyPurpose}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-stone-500">
+              Story tone
+            </p>
+            <p className="mt-1 text-sm text-stone-800">{storyTone}</p>
+          </div>
+        </div>
+      </SectionCard>
+
       <SectionCard
         title="Learning Goals"
         description="Review targets from story setup for classroom planning"

@@ -2,6 +2,8 @@
 
 Quick reference for what Phase 2B built, what is still mocked, and how to test each mode before connecting a real backend.
 
+**Teacher setup flow (Phase 2C):** See [teacher-setup-flow.md](./teacher-setup-flow.md) for the setup form, review step, and generation step.
+
 ---
 
 ## What is complete
@@ -16,6 +18,7 @@ Quick reference for what Phase 2B built, what is still mocked, and how to test e
 - [x] Fixture mode for testing parser + validation
 - [x] Async generation + loading UI on output page
 - [x] Setup page submit loading transition
+- [x] Guided teacher setup form + review step (Phase 2C)
 - [x] Fallback teacher notice + Debug error visibility
 - [x] `fallbackReason` for developer diagnostics
 

@@ -195,6 +195,8 @@ function StoryOutputContent({
 
         {activeTab === 'teacher-notes' && (
           <TeacherNotesPanel
+            storyPurpose={generationInput.storyPurpose}
+            storyTone={generationInput.storyTone}
             learningGoal={generationInput.learningGoal}
             vocabularyFocus={generationInput.vocabularyFocus}
             pages={story.pages}
