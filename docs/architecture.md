@@ -114,6 +114,31 @@ Examples:
 5. Mobile-first Tailwind.
 6. Do not add Supabase, auth, AI, or payments unless explicitly requested for that phase.
 
+## Dashboard story generation (Phase 5)
+
+The dashboard create-story flow lives in `features/story-generator/` and is separate from the legacy wizard in `features/story-generation/`.
+
+### Flow
+
+```
+UI → useGenerationStore → useStoryGenerationFlow
+  → storyGenerationService → provider → imageGenerationService
+  → contract validation → persistGeneratedStory → story-storage → story detail route
+```
+
+### Boundaries
+
+| Layer | May import | Must not import |
+|-------|------------|-----------------|
+| Pages / hooks | `storyGenerationService`, `useGenerationStore`, `useStoryGenerationFlow` | Providers, prompt templates, OpenAI |
+| `storyGenerationService` | Providers (via resolver), contracts, usage, image service | React, UI components |
+| Providers | Prompt templates, contracts | UI, storage, Zustand |
+| `persistGeneratedStory` | `story-storage`, project builders | Providers |
+
+Storage still follows Phase 4: `story-storage.ts` → `resolveStoryStorageAdapter()` → local | supabase.
+
+Full Phase 5 summary: [phase-5-progress.md](./phase-5-progress.md).
+
 ## Tech stack
 
 - Vite

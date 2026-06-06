@@ -201,3 +201,24 @@ When ready to connect real AI:
 - [phase-2b-ai-checklist.md](./phase-2b-ai-checklist.md) — testing checklist and pre-real-AI steps
 - [phase-1-summary.md](./phase-1-summary.md)
 - [architecture.md](./architecture.md)
+- [phase-5-progress.md](./phase-5-progress.md) — **dashboard** create-story flow (Phase 5, complete through 5.10)
+
+---
+
+## Dashboard create-story flow (Phase 5)
+
+The **dashboard** route (`/dashboard/create-story`) uses a separate generation stack under `features/story-generator/`. It is not the legacy wizard in `features/story-generation/`.
+
+```
+Create Story UI
+  → useGenerationStore
+  → useStoryGenerationFlow
+  → storyGenerationService
+  → StoryGenerationProvider (mock | OpenAI)
+  → imageGenerationService
+  → contracts validation
+  → persistGeneratedStory → story-storage
+  → /dashboard/stories/:id
+```
+
+UI must call `generateStory()` / `useStoryGenerationFlow()` only — never import providers directly. See [phase-5-progress.md](./phase-5-progress.md) for modes, boundaries, and env vars.
