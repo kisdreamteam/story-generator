@@ -18,7 +18,24 @@ export {
   applyPageTextChange,
   normalizeEditableStory,
 } from './applyStoryEditorMutations'
+export {
+  applyMoveImagePrompt,
+  applyRegenerateImagePrompt,
+} from './imagePromptListMutations'
+export { draftManualImagePrompt } from './draftManualImagePrompt'
+export {
+  applyAddFlashcard,
+  applyMoveFlashcard,
+  applyRemoveFlashcard,
+  createEmptyFlashcard,
+} from './flashcardListMutations'
 export { applyPageCommit } from './applyPageCommit'
+export {
+  applyAddStoryPage,
+  applyMoveStoryPage,
+  applyRemoveStoryPage,
+  MIN_STORY_PAGE_COUNT,
+} from './storyPageListMutations'
 export {
   createEditablePageDraft,
   editablePageDraftEqual,

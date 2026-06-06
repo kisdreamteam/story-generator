@@ -1,7 +1,7 @@
-export { useStoryEditor } from './useStoryEditor'
+export { useStoryEditor, useStoryEditorBootstrap, useStoryEditorStoreView } from './useStoryEditor'
 export { useEditablePageCardState } from './useEditablePageCardState'
 export { useStoryAutosave } from './useStoryAutosave'
-export type { UseStoryAutosaveOptions, UseStoryAutosaveResult } from './useStoryAutosave'
+export type { UseStoryAutosaveOptions, UseStoryAutosaveResult, StoryEditorPersistedResult } from './useStoryAutosave'
 export { useStoryEditingToolbar } from './useStoryEditingToolbar'
 export type {
   UseStoryEditingToolbarOptions,

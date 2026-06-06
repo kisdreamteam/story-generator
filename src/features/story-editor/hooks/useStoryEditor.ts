@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import type {
   StoryEditorSaveStatus,
   StoryEditorSession,
@@ -7,10 +8,29 @@ import type {
 } from '../types'
 import type { GeneratedStorySnapshot } from '../types'
 import type { EditablePageCommit } from '../types/editablePage.types'
+import type { StoryEditorState } from '../types/storyEditorState.types'
+import { useStoryEditContextOptional } from '../storyEditContext'
+import { storyEditorSelectors } from '../storyEditorSelectors'
+import { useStoryEditorStore } from '../storyEditorStore'
+import {
+  applyAddStoryPage,
+  applyMoveStoryPage,
+  applyRemoveStoryPage,
+} from '../utils/storyPageListMutations'
+import {
+  applyAddFlashcard,
+  applyMoveFlashcard,
+  applyRemoveFlashcard,
+} from '../utils/flashcardListMutations'
+import {
+  applyMoveImagePrompt,
+  applyRegenerateImagePrompt,
+} from '../utils/imagePromptListMutations'
 import {
   applyFlashcardChange,
   applyImagePromptChange,
   applyMetadataChange,
+  applyPageTeachingFocusChange,
   applyPageTextChange,
   createEditorSession,
   applyPageCommit,
@@ -23,6 +43,43 @@ import {
   storyEditorStateEqual,
 } from '../utils/storyEditorStateMapping'
 
+export interface UseStoryEditorBootstrapOptions {
+  storyId: string
+  projectTitle: string
+  sourceStory: GeneratedStorySnapshot | null
+  enabled?: boolean
+  lastSavedAt?: string | null
+}
+
+/** Load a saved story into the editor store — call from {@link StoryEditProvider}. */
+export function useStoryEditorBootstrap({
+  storyId,
+  projectTitle,
+  sourceStory,
+  enabled = true,
+  lastSavedAt = null,
+}: UseStoryEditorBootstrapOptions): void {
+  const initialize = useStoryEditorStore((state) => state.initialize)
+  const reset = useStoryEditorStore((state) => state.reset)
+
+  useEffect(() => {
+    if (!enabled || !sourceStory || !storyId) {
+      reset()
+      return
+    }
+
+    initialize({
+      context: { storyId, projectTitle },
+      source: sourceStory,
+      lastSavedAt,
+    })
+
+    return () => {
+      reset()
+    }
+  }, [enabled, initialize, lastSavedAt, projectTitle, reset, sourceStory, storyId])
+}
+
 function bumpSessionAfterEdit(session: StoryEditorSession): StoryEditorSession {
   return {
     ...session,
@@ -32,15 +89,13 @@ function bumpSessionAfterEdit(session: StoryEditorSession): StoryEditorSession {
   }
 }
 
-/**
- * Editing-layer state for generated stories.
- * Operates on {@link StoryEditorState} — never mutates generation output or persisted objects.
- */
-export function useStoryEditor(
+/** Local session state for inline editing outside {@link StoryEditProvider}. */
+function useStoryEditorLocal(
   sourceStory: GeneratedStorySnapshot | null,
-  options?: UseStoryEditorOptions,
+  options: UseStoryEditorOptions | undefined,
+  active: boolean,
 ): UseStoryEditorResult {
-  const enabled = options?.enabled ?? true
+  const enabled = active && (options?.enabled ?? true)
   const storyId = options?.storyId ?? ''
   const projectTitle = options?.projectTitle ?? ''
 
@@ -52,19 +107,12 @@ export function useStoryEditor(
       return
     }
 
-    setSession(
-      createEditorSession(
-        { storyId, projectTitle },
-        sourceStory,
-      ),
-    )
+    setSession(createEditorSession({ storyId, projectTitle }, sourceStory))
   }, [enabled, sourceStory, storyId, projectTitle])
 
   const isDirty = useMemo(
     () =>
-      session
-        ? computeStoryHasChanges(session.originalState, session.editable, true)
-        : false,
+      session ? computeStoryHasChanges(session.originalState, session.editable, true) : false,
     [session],
   )
 
@@ -81,7 +129,6 @@ export function useStoryEditor(
   const updatePageText = useCallback((pageNumber: number, text: string) => {
     setSession((current) => {
       if (!current) return current
-
       return bumpSessionAfterEdit({
         ...current,
         editable: applyPageTextChange(current.editable, pageNumber, text),
@@ -89,13 +136,45 @@ export function useStoryEditor(
     })
   }, [])
 
-  const updateFlashcard = useCallback((index: number, patch: Parameters<UseStoryEditorResult['updateFlashcard']>[1]) => {
+  const updateFlashcard = useCallback(
+    (index: number, patch: Parameters<UseStoryEditorResult['updateFlashcard']>[1]) => {
+      setSession((current) => {
+        if (!current) return current
+        return bumpSessionAfterEdit({
+          ...current,
+          editable: applyFlashcardChange(current.editable, index, patch),
+        })
+      })
+    },
+    [],
+  )
+
+  const addFlashcard = useCallback((afterIndex?: number) => {
     setSession((current) => {
       if (!current) return current
-
       return bumpSessionAfterEdit({
         ...current,
-        editable: applyFlashcardChange(current.editable, index, patch),
+        editable: applyAddFlashcard(current.editable, afterIndex),
+      })
+    })
+  }, [])
+
+  const removeFlashcard = useCallback((index: number) => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyRemoveFlashcard(current.editable, index),
+      })
+    })
+  }, [])
+
+  const moveFlashcard = useCallback((index: number, direction: 'up' | 'down') => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyMoveFlashcard(current.editable, index, direction),
       })
     })
   }, [])
@@ -104,7 +183,6 @@ export function useStoryEditor(
     (pageNumber: number, patch: Parameters<UseStoryEditorResult['updateImagePrompt']>[1]) => {
       setSession((current) => {
         if (!current) return current
-
         return bumpSessionAfterEdit({
           ...current,
           editable: applyImagePromptChange(current.editable, pageNumber, patch),
@@ -114,10 +192,29 @@ export function useStoryEditor(
     [],
   )
 
+  const moveImagePrompt = useCallback((pageNumber: number, direction: 'up' | 'down') => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyMoveImagePrompt(current.editable, pageNumber, direction),
+      })
+    })
+  }, [])
+
+  const regenerateImagePrompt = useCallback((pageNumber: number) => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyRegenerateImagePrompt(current.editable, pageNumber),
+      })
+    })
+  }, [])
+
   const updateMetadata = useCallback((patch: Parameters<UseStoryEditorResult['updateMetadata']>[0]) => {
     setSession((current) => {
       if (!current) return current
-
       return bumpSessionAfterEdit({
         ...current,
         editable: applyMetadataChange(current.editable, patch),
@@ -128,7 +225,6 @@ export function useStoryEditor(
   const commitPageUpdate = useCallback((commit: EditablePageCommit) => {
     setSession((current) => {
       if (!current) return current
-
       return bumpSessionAfterEdit({
         ...current,
         editable: applyPageCommit(current.editable, commit),
@@ -136,10 +232,49 @@ export function useStoryEditor(
     })
   }, [])
 
+  const addPage = useCallback((afterPageNumber?: number) => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyAddStoryPage(current.editable, afterPageNumber),
+      })
+    })
+  }, [])
+
+  const removePage = useCallback((pageNumber: number) => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyRemoveStoryPage(current.editable, pageNumber),
+      })
+    })
+  }, [])
+
+  const movePage = useCallback((pageNumber: number, direction: 'up' | 'down') => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyMoveStoryPage(current.editable, pageNumber, direction),
+      })
+    })
+  }, [])
+
+  const updateTeachingFocus = useCallback((pageNumber: number, teachingFocus: string) => {
+    setSession((current) => {
+      if (!current) return current
+      return bumpSessionAfterEdit({
+        ...current,
+        editable: applyPageTeachingFocusChange(current.editable, pageNumber, teachingFocus),
+      })
+    })
+  }, [])
+
   const restoreOriginal = useCallback(() => {
     setSession((current) => {
       if (!current) return current
-
       return {
         ...current,
         editable: cloneStoryEditorState(current.originalState),
@@ -153,7 +288,6 @@ export function useStoryEditor(
   const replaceEditable = useCallback((content: GeneratedStorySnapshot) => {
     setSession((current) => {
       if (!current) return current
-
       return bumpSessionAfterEdit({
         ...current,
         editable: createStoryEditorState(content),
@@ -169,7 +303,6 @@ export function useStoryEditor(
     setSession((current) => (current ? { ...current, saveStatus: status } : current))
   }, [])
 
-  /** Sync session baseline after a successful persist (autosave or manual). */
   const markPersisted = useCallback((savedStory: GeneratedStorySnapshot) => {
     setSession((current) => {
       if (!current) return current
@@ -199,13 +332,165 @@ export function useStoryEditor(
     saveStatus: session?.saveStatus ?? 'idle',
     updatePageText,
     updateFlashcard,
+    addFlashcard,
+    removeFlashcard,
+    moveFlashcard,
     updateImagePrompt,
+    moveImagePrompt,
+    regenerateImagePrompt,
     updateMetadata,
     commitPageUpdate,
+    addPage,
+    removePage,
+    movePage,
+    updateTeachingFocus,
     restoreOriginal,
-    replaceEditable,
+    resetChanges: restoreOriginal,
     resetSession,
+    replaceEditable,
     markSaveStatus,
     markPersisted,
   }
+}
+
+function useStoryEditorStoreSlice() {
+  return useStoryEditorStore(
+    useShallow((state) => ({
+      context: storyEditorSelectors.context(state),
+      baselineState: storyEditorSelectors.baselineState(state),
+      editorState: storyEditorSelectors.workingState(state),
+      originalStory: storyEditorSelectors.originalStory(state),
+      editedStory: storyEditorSelectors.editedStory(state),
+      isDirty: storyEditorSelectors.isDirty(state),
+      version: storyEditorSelectors.version(state),
+      lastSavedAt: storyEditorSelectors.lastSavedAt(state),
+      saveStatus: storyEditorSelectors.saveStatus(state),
+      updateMetadata: state.updateMetadata,
+      updatePageText: state.updatePageText,
+      updateTeachingFocus: state.updateTeachingFocus,
+      updateFlashcard: state.updateFlashcard,
+      addFlashcard: state.addFlashcard,
+      removeFlashcard: state.removeFlashcard,
+      moveFlashcard: state.moveFlashcard,
+      updateImagePrompt: state.updateImagePrompt,
+      moveImagePrompt: state.moveImagePrompt,
+      regenerateImagePrompt: state.regenerateImagePrompt,
+      commitPageUpdate: state.commitPageUpdate,
+      addPage: state.addPage,
+      removePage: state.removePage,
+      movePage: state.movePage,
+      restoreBaseline: state.restoreBaseline,
+      replaceWorkingCopy: state.replaceWorkingCopy,
+      markSaveStatus: state.markSaveStatus,
+      markPersisted: state.markPersisted,
+      reset: state.reset,
+    })),
+  )
+}
+
+function buildSession(
+  context: ReturnType<typeof storyEditorSelectors.context>,
+  baselineState: StoryEditorState | null,
+  editorState: StoryEditorState | null,
+  version: number,
+  lastSavedAt: string | null,
+  saveStatus: StoryEditorSaveStatus,
+): StoryEditorSession | null {
+  if (!context || !baselineState || !editorState) {
+    return null
+  }
+
+  return {
+    context,
+    originalState: baselineState,
+    editable: editorState,
+    revision: version,
+    lastEditedAt: computeStoryHasChanges(baselineState, editorState, true) ? lastSavedAt : null,
+    saveStatus,
+  }
+}
+
+/** Read the global editor store as {@link UseStoryEditorResult}. */
+export function useStoryEditorStoreView(): UseStoryEditorResult {
+  const store = useStoryEditorStoreSlice()
+
+  const session = useMemo(
+    () =>
+      buildSession(
+        store.context,
+        store.baselineState,
+        store.editorState,
+        store.version,
+        store.lastSavedAt,
+        store.saveStatus,
+      ),
+    [
+      store.baselineState,
+      store.context,
+      store.editorState,
+      store.lastSavedAt,
+      store.saveStatus,
+      store.version,
+    ],
+  )
+
+  const restoreOriginal = useCallback(() => {
+    store.restoreBaseline()
+  }, [store.restoreBaseline])
+
+  return {
+    session,
+    editorState: store.editorState,
+    originalStory: store.originalStory,
+    editedStory: store.editedStory,
+    isDirty: store.isDirty,
+    revision: store.version,
+    saveStatus: store.saveStatus,
+    updatePageText: store.updatePageText,
+    updateTeachingFocus: store.updateTeachingFocus,
+    updateFlashcard: store.updateFlashcard,
+    addFlashcard: store.addFlashcard,
+    removeFlashcard: store.removeFlashcard,
+    moveFlashcard: store.moveFlashcard,
+    updateImagePrompt: store.updateImagePrompt,
+    moveImagePrompt: store.moveImagePrompt,
+    regenerateImagePrompt: store.regenerateImagePrompt,
+    updateMetadata: store.updateMetadata,
+    commitPageUpdate: store.commitPageUpdate,
+    addPage: store.addPage,
+    removePage: store.removePage,
+    movePage: store.movePage,
+    restoreOriginal,
+    resetChanges: restoreOriginal,
+    resetSession: store.reset,
+    replaceEditable: store.replaceWorkingCopy,
+    markSaveStatus: store.markSaveStatus,
+    markPersisted: store.markPersisted,
+  }
+}
+
+/**
+ * Editing-layer state for generated stories.
+ * - Inside {@link StoryEditProvider} with no args: full edit-mode context.
+ * - With `sourceStory`: local session for inline editing (e.g. story detail).
+ * - Otherwise: global store view.
+ */
+export function useStoryEditor(
+  sourceStory?: GeneratedStorySnapshot | null,
+  options?: UseStoryEditorOptions,
+): UseStoryEditorResult {
+  const editContext = useStoryEditContextOptional()
+  const useLegacy = sourceStory !== undefined || options !== undefined
+  const localResult = useStoryEditorLocal(sourceStory ?? null, options, useLegacy)
+  const storeResult = useStoryEditorStoreView()
+
+  if (editContext && !useLegacy) {
+    return editContext
+  }
+
+  if (useLegacy) {
+    return localResult
+  }
+
+  return storeResult
 }

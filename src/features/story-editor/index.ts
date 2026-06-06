@@ -6,8 +6,14 @@
  * Persist and preview use `convertEditorStateToGeneratedStory()` at boundaries.
  */
 
+export { saveStoryEditorChanges } from './api/saveStoryEditorChanges'
+export type { SaveStoryEditorChangesResult } from './api/saveStoryEditorChanges'
 export { StoryEditorPage } from './StoryEditorPage'
-export { useStoryEditor, useEditablePageCardState, useStoryAutosave, useStoryVersionHistory, useStoryRevisions, useStoryEditingToolbar, useStoryEditorViewMode, useStoryPageNavigation, useStoryDirtyState, useStoryNavigationBlocker } from './hooks'
+export { StoryEditProvider } from './StoryEditProvider'
+export type { StoryEditProviderProps } from './StoryEditProvider'
+export { StoryEditContext, useStoryEditContext, useStoryEditContextOptional } from './storyEditContext'
+export type { StoryEditContextValue } from './storyEditContext'
+export { useStoryEditor, useEditablePageCardState, useStoryAutosave, useStoryVersionHistory, useStoryRevisions, useStoryEditingToolbar, useStoryEditorViewMode, useStoryPageNavigation, useStoryDirtyState, useStoryNavigationBlocker, useStoryEditorBootstrap } from './hooks'
 export type {
   UseStoryAutosaveOptions,
   UseStoryAutosaveResult,
@@ -95,6 +101,24 @@ export type {
   AppendStoryRevisionResult,
   RestoreStoryRevisionResult,
 } from './types'
+export {
+  useStoryEditorStore,
+  getStoryEditorStoreState,
+  resetStoryEditorStore,
+} from './storyEditorStore'
+export { createStoryEditorActions, getStoryEditorStoreActions } from './storyEditorActions'
+export { storyEditorSelectors } from './storyEditorSelectors'
+export type {
+  StoryEditorBaseline,
+  StoryEditorDerivedState,
+  StoryEditorInitializeInput,
+  StoryEditorSourceSnapshot,
+  StoryEditorStore,
+  StoryEditorStoreActions,
+  StoryEditorStoreState,
+  StoryEditorWorkingCopy,
+} from './storyEditorTypes'
+export { INITIAL_STORY_EDITOR_STORE_STATE } from './storyEditorTypes'
 export {
   STORY_EDITOR_AUTOSAVE_DEBOUNCE_MS,
   DEFAULT_STORY_VERSION_LIMIT,

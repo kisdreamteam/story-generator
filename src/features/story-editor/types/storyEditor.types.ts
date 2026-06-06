@@ -46,11 +46,20 @@ export interface StoryEditorSession {
 
 export interface StoryEditorPatchHandlers {
   updatePageText: (pageNumber: number, text: string) => void
+  updateTeachingFocus: (pageNumber: number, teachingFocus: string) => void
   updateFlashcard: (index: number, patch: Partial<StoryFlashcard>) => void
+  addFlashcard: (afterIndex?: number) => void
+  removeFlashcard: (index: number) => void
+  moveFlashcard: (index: number, direction: 'up' | 'down') => void
   updateImagePrompt: (pageNumber: number, patch: Partial<StoryImagePrompt>) => void
+  moveImagePrompt: (pageNumber: number, direction: 'up' | 'down') => void
+  regenerateImagePrompt: (pageNumber: number) => void
   updateMetadata: (patch: Partial<StoryEditorMetadata>) => void
   /** Apply a validated page-card commit to the session working copy. */
   commitPageUpdate: (commit: EditablePageCommit) => void
+  addPage: (afterPageNumber?: number) => void
+  removePage: (pageNumber: number) => void
+  movePage: (pageNumber: number, direction: 'up' | 'down') => void
 }
 
 export interface UseStoryEditorOptions {
@@ -78,7 +87,13 @@ export interface UseStoryEditorResult extends StoryEditorPatchHandlers {
   /** Marks save lifecycle — for autosave and manual save integration. */
   markSaveStatus: (status: StoryEditorSaveStatus) => void
   /** Align editor baseline with content persisted to storage. */
-  markPersisted: (savedStory: GeneratedStorySnapshot) => void
+  markPersisted: (savedStory: GeneratedStorySnapshot, savedAt?: string) => void
+  /** Revert working copy to the last saved baseline. */
+  resetChanges: () => void
+  /** Leave edit mode — available inside {@link StoryEditProvider}. */
+  cancelEditing?: () => void
+  /** Persist working copy immediately — available inside {@link StoryEditProvider}. */
+  saveDraft?: () => Promise<boolean>
 }
 
 /** Default debounce for a future autosave hook. */

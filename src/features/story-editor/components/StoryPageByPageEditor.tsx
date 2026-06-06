@@ -1,31 +1,29 @@
+import { useState } from 'react'
 import { AppCard } from '@/shared/components'
 import type { StoryFlashcard, StoryImagePrompt } from '@/features/stories/types'
 import type { StoryEditorMetadata, StoryEditorState } from '../types/storyEditorState.types'
-import { useStoryPageNavigation } from '../hooks/useStoryPageNavigation'
 import { FlashcardEditor } from './FlashcardEditor'
 import { ImagePromptEditor } from './ImagePromptEditor'
 import { StoryMetadataEditor } from './StoryMetadataEditor'
-import { StoryPageEditor } from './StoryPageEditor'
-import { StoryPageNavigation } from './StoryPageNavigation'
+import { StoryPageListEditor } from './StoryPageListEditor'
 
 export interface StoryPageByPageEditorProps {
   editorState: StoryEditorState
   disabled?: boolean
   onMetadataChange: (patch: Partial<StoryEditorMetadata>) => void
   onPageTextChange: (pageNumber: number, text: string) => void
+  onTeachingFocusChange?: (pageNumber: number, teachingFocus: string) => void
+  onAddPage: (afterPageNumber?: number) => void
+  onRemovePage: (pageNumber: number) => void
+  onMovePage: (pageNumber: number, direction: 'up' | 'down') => void
   onImagePromptChange: (pageNumber: number, patch: Partial<StoryImagePrompt>) => void
+  onRegenerateImagePrompt: (pageNumber: number) => void
+  onMoveImagePrompt: (pageNumber: number, direction: 'up' | 'down') => void
   onFlashcardChange: (index: number, patch: Partial<StoryFlashcard>) => void
+  onAddFlashcard: (afterIndex?: number) => void
+  onRemoveFlashcard: (index: number) => void
+  onMoveFlashcard: (index: number, direction: 'up' | 'down') => void
   className?: string
-}
-
-function findImagePrompt(state: StoryEditorState, pageNumber: number): StoryImagePrompt {
-  return (
-    state.imagePrompts.find((item) => item.pageNumber === pageNumber) ?? {
-      pageNumber,
-      prompt: '',
-      continuityReminder: '',
-    }
-  )
 }
 
 /**
@@ -36,22 +34,36 @@ export function StoryPageByPageEditor({
   disabled = false,
   onMetadataChange,
   onPageTextChange,
+  onTeachingFocusChange,
+  onAddPage,
+  onRemovePage,
+  onMovePage,
   onImagePromptChange,
+  onRegenerateImagePrompt,
+  onMoveImagePrompt,
   onFlashcardChange,
+  onAddFlashcard,
+  onRemoveFlashcard,
+  onMoveFlashcard,
   className = '',
 }: StoryPageByPageEditorProps) {
-  const navigation = useStoryPageNavigation(editorState.pages)
-  const currentPage = navigation.currentPage
+  const sortedPages = [...editorState.pages].sort((left, right) => left.pageNumber - right.pageNumber)
+  const firstPageNumber = sortedPages[0]?.pageNumber
 
-  if (!currentPage) {
+  const [selectedPageNumber, setSelectedPageNumber] = useState<number | null>(
+    () => sortedPages[0]?.pageNumber ?? null,
+  )
+
+  const activePageNumber =
+    selectedPageNumber && sortedPages.some((page) => page.pageNumber === selectedPageNumber)
+      ? selectedPageNumber
+      : sortedPages[0]?.pageNumber
+
+  if (!activePageNumber) {
     return null
   }
 
-  const firstPageNumber = navigation.sortedPages[0]?.pageNumber
-  const showFlashcards =
-    firstPageNumber !== undefined && currentPage.pageNumber === firstPageNumber
-
-  const imagePrompt = findImagePrompt(editorState, currentPage.pageNumber)
+  const showFlashcards = firstPageNumber !== undefined && activePageNumber === firstPageNumber
 
   return (
     <div className={['space-y-6', className].filter(Boolean).join(' ')}>
@@ -63,44 +75,43 @@ export function StoryPageByPageEditor({
         />
       </AppCard>
 
-      <StoryPageNavigation
-        currentPageNumber={currentPage.pageNumber}
-        currentIndex={navigation.currentIndex}
-        totalPages={navigation.totalPages}
-        canGoPrevious={navigation.canGoPrevious}
-        canGoNext={navigation.canGoNext}
-        onPrevious={navigation.goPrevious}
-        onNext={navigation.goNext}
+      <StoryPageListEditor
+        pages={editorState.pages}
         disabled={disabled}
+        selectedPageNumber={activePageNumber}
+        onSelectPage={setSelectedPageNumber}
+        onTextChange={onPageTextChange}
+        onTeachingFocusChange={onTeachingFocusChange}
+        onAddPage={onAddPage}
+        onRemovePage={onRemovePage}
+        onMovePage={onMovePage}
       />
 
-      <AppCard padding="md" className="space-y-6 border-stone-200 bg-white">
-        <StoryPageEditor
-          page={currentPage}
-          disabled={disabled}
-          onTextChange={(text) => onPageTextChange(currentPage.pageNumber, text)}
-        />
-
+      <AppCard padding="md" className="border-stone-200 bg-white">
         <ImagePromptEditor
-          pageNumber={currentPage.pageNumber}
-          imagePrompt={imagePrompt}
+          pages={editorState.pages}
+          imagePrompts={editorState.imagePrompts}
           disabled={disabled}
-          onPromptChange={(prompt) =>
-            onImagePromptChange(currentPage.pageNumber, { prompt })
-          }
-          onContinuityChange={(continuityReminder) =>
-            onImagePromptChange(currentPage.pageNumber, { continuityReminder })
-          }
+          selectedPageNumber={activePageNumber}
+          onSelectPage={setSelectedPageNumber}
+          onPromptChange={onImagePromptChange}
+          onRegeneratePrompt={onRegenerateImagePrompt}
+          onMovePrompt={onMoveImagePrompt}
         />
+      </AppCard>
 
-        {showFlashcards ? (
+      {showFlashcards ? (
+        <AppCard padding="md" className="border-stone-200 bg-white">
           <FlashcardEditor
             flashcards={editorState.flashcards}
             disabled={disabled}
             onFlashcardChange={onFlashcardChange}
+            onAddFlashcard={onAddFlashcard}
+            onRemoveFlashcard={onRemoveFlashcard}
+            onMoveFlashcard={onMoveFlashcard}
           />
-        ) : null}
-      </AppCard>
+        </AppCard>
+      ) : null}
     </div>
   )
 }

@@ -10,7 +10,7 @@ export interface StoryStorageAdapter {
   getStoryDraft(id: string): StoryProject | null
   getStoryDrafts(): StoryProject[]
   saveStoryDraft(project: StoryProject): void
-  /** Persist edited generated content for an existing story. Preserves id, createdAt, and setup. */
+  /** Persist edited generated content for an existing story. Preserves id, createdAt, and setup; bumps version and updatedAt. */
   updateStory(id: string, generatedStory: GeneratedStory): StoryProject | null
   deleteStoryDraft(id: string): void
   clearStoryDrafts(): void

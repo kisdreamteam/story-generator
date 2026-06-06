@@ -1,10 +1,7 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { AppButton, ErrorState, PageHeader } from '@/shared/components'
 import { StoryReadOnlyView } from '@/features/stories/components/StoryReadOnlyView'
-import {
-  classifyStoryLoadError,
-  type StoryLoadErrorPresentation,
-} from '@/features/story-generator/lib/story-route-guards'
+import type { StoryLoadErrorPresentation } from '@/features/story-generator/lib/story-route-guards'
 import {
   StoryDetailLoadGuard,
   useStoryDetail,
@@ -20,48 +17,43 @@ import {
   useStoryHistory,
   wouldRestoreStoryHistoryChangeContent,
 } from '@/features/story-history'
-import { useStoryEditor } from './hooks/useStoryEditor'
-import { useStoryDirtyState } from './hooks/useStoryDirtyState'
-import { useStoryAutosave } from './hooks/useStoryAutosave'
+import { StoryEditProvider } from './StoryEditProvider'
+import { useStoryEditContext } from './storyEditContext'
 import { useStoryEditingToolbar } from './hooks/useStoryEditingToolbar'
 import { useStoryEditorViewMode } from './hooks/useStoryEditorViewMode'
 import { StoryPageByPageEditor } from './components/StoryPageByPageEditor'
 import { StoryEditingToolbar } from './components/StoryEditingToolbar'
 import { StoryEditorViewSwitcher } from './components/StoryEditorViewSwitcher'
 
-/**
- * Dedicated editing page — separate from generation preview and read-only detail view.
- * Loads generated content into an editable session; persistence stays in storyStorageApi.
- */
-export function StoryEditorPage() {
-  const { storyId } = useParams<{ storyId: string }>()
-  const { status, data, presentation, isAuthLoading, reload } = useStoryDetail(storyId)
-
-  const isGenerated = data?.kind === 'generated'
-  const draft = data?.draft ?? null
-  const sourceGeneratedStory = isGenerated && data ? data.generatedStory : null
-
-  const [actionError, setActionError] = useState<StoryLoadErrorPresentation | null>(null)
-  const [validationErrors, setValidationErrors] = useState<StorySaveValidationResult | null>(null)
-
+function StoryEditorPageContent() {
   const {
-    session,
+    storyId,
+    draft,
     editorState,
     editedStory,
-    isDirty,
-    revision,
+    hasChanges,
+    confirmLeave,
+    isSaving,
+    autosaveStatus,
+    cancelScheduledSave,
+    resetChanges,
+    replaceEditable,
+    saveDraft,
+    reloadStory,
     updateMetadata,
     updatePageText,
+    updateTeachingFocus,
     updateFlashcard,
+    addFlashcard,
+    removeFlashcard,
+    moveFlashcard,
     updateImagePrompt,
-    restoreOriginal,
-    replaceEditable,
-    markPersisted,
-  } = useStoryEditor(sourceGeneratedStory, {
-    enabled: isGenerated,
-    storyId: storyId ?? '',
-    projectTitle: draft?.title ?? '',
-  })
+    moveImagePrompt,
+    regenerateImagePrompt,
+    addPage,
+    removePage,
+    movePage,
+  } = useStoryEditContext()
 
   const {
     summaries: historySummaries,
@@ -72,44 +64,19 @@ export function StoryEditorPage() {
     compareEntries,
     compareEntryToCurrent,
   } = useStoryHistory({
-    storyId: draft?.id ?? storyId ?? '',
+    storyId: draft?.id ?? storyId,
     currentStory: editedStory,
   })
 
-  const { status: autosaveStatus, isSaving, flushSave, cancelScheduledSave } = useStoryAutosave({
-    storyId: draft?.id,
-    editedStory,
-    revision,
-    isDirty,
-    enabled: isGenerated && Boolean(draft),
-    onPersisted: (savedStory) => {
-      markPersisted(savedStory)
-      void refreshHistory()
-    },
-    onError: (error) => setActionError(classifyStoryLoadError(error)),
-    onValidationFailed: (result) => {
-      setValidationErrors(result)
-      setActionError(null)
-    },
-  })
-
   const saveEdits = useCallback(async () => {
-    setActionError(null)
-    setValidationErrors(null)
-    const saved = await flushSave()
+    const saved = await saveDraft?.()
     if (saved) {
       await refreshHistory()
     }
-    return saved
-  }, [flushSave, refreshHistory])
+    return saved ?? false
+  }, [refreshHistory, saveDraft])
 
   const viewMode = useStoryEditorViewMode({ previewSource: editedStory })
-
-  const { hasChanges, confirmLeave } = useStoryDirtyState({
-    originalState: session?.originalState ?? null,
-    editorState,
-    storyId,
-  })
 
   const { toolbarProps } = useStoryEditingToolbar({
     storyId: storyId ?? draft?.id,
@@ -123,9 +90,9 @@ export function StoryEditorPage() {
     enterPreview: viewMode.enterPreview,
     flushSave: saveEdits,
     cancelScheduledSave,
-    restoreOriginal,
+    restoreOriginal: resetChanges,
     onSaveSuccess: () => {
-      reload()
+      reloadStory()
       void refreshHistory()
     },
   })
@@ -150,9 +117,80 @@ export function StoryEditorPage() {
     }
   }
 
-  function handleBackToStory() {
-    toolbarProps.onExit()
+  if (!editedStory || !editorState) {
+    return null
   }
+
+  return (
+    <div className="space-y-6">
+      <StoryEditingToolbar {...toolbarProps} />
+
+      <StoryEditorViewSwitcher
+        mode={viewMode.mode}
+        editView={
+          <>
+            <div id={STORY_HISTORY_ELEMENT_ID}>
+              <StoryHistoryPanel
+                entries={historySummaries}
+                onRestore={handleRestoreHistoryEntry}
+                compareEntries={compareEntries}
+                compareEntryToCurrent={compareEntryToCurrent}
+                currentStory={editedStory}
+                disabled={isSaving}
+                isLoading={historyLoading}
+              />
+            </div>
+
+                    <StoryPageByPageEditor
+                      editorState={editorState}
+                      disabled={isSaving}
+                      onMetadataChange={updateMetadata}
+                      onPageTextChange={updatePageText}
+                      onTeachingFocusChange={updateTeachingFocus}
+                      onAddPage={addPage}
+                      onRemovePage={removePage}
+                      onMovePage={movePage}
+                      onImagePromptChange={updateImagePrompt}
+                      onRegenerateImagePrompt={regenerateImagePrompt}
+                      onMoveImagePrompt={moveImagePrompt}
+                      onFlashcardChange={updateFlashcard}
+                      onAddFlashcard={addFlashcard}
+                      onRemoveFlashcard={removeFlashcard}
+                      onMoveFlashcard={moveFlashcard}
+                    />
+          </>
+        }
+        previewView={
+          viewMode.previewStory ? (
+            <StoryReadOnlyView story={viewMode.previewStory} savedToLibrary />
+          ) : null
+        }
+      />
+    </div>
+  )
+}
+
+/**
+ * Dedicated editing page — separate from generation preview and read-only detail view.
+ * Loads generated content into an editable session; persistence stays in storyStorageApi.
+ */
+export function StoryEditorPage() {
+  const { storyId } = useParams<{ storyId: string }>()
+  const navigate = useNavigate()
+  const { status, data, presentation, isAuthLoading, reload } = useStoryDetail(storyId)
+
+  const isGenerated = data?.kind === 'generated'
+  const draft = data?.draft ?? null
+  const sourceGeneratedStory = isGenerated && data ? data.generatedStory : null
+
+  const [actionError, setActionError] = useState<StoryLoadErrorPresentation | null>(null)
+  const [validationErrors, setValidationErrors] = useState<StorySaveValidationResult | null>(null)
+
+  const handleBackToStory = useCallback(() => {
+    if (storyId) {
+      navigate(`/dashboard/stories/${encodeURIComponent(storyId)}`)
+    }
+  }, [navigate, storyId])
 
   return (
     <StoryDetailLoadGuard
@@ -203,43 +241,24 @@ export function StoryEditorPage() {
             </ErrorState>
           )}
 
-          {isGenerated && editedStory && editorState && (
-            <div className="space-y-6">
-              <StoryEditingToolbar {...toolbarProps} />
-
-              <StoryEditorViewSwitcher
-                mode={viewMode.mode}
-                editView={
-                  <>
-                    <div id={STORY_HISTORY_ELEMENT_ID}>
-                      <StoryHistoryPanel
-                        entries={historySummaries}
-                        onRestore={handleRestoreHistoryEntry}
-                        compareEntries={compareEntries}
-                        compareEntryToCurrent={compareEntryToCurrent}
-                        currentStory={editedStory}
-                        disabled={isSaving}
-                        isLoading={historyLoading}
-                      />
-                    </div>
-
-                    <StoryPageByPageEditor
-                      editorState={editorState}
-                      disabled={isSaving}
-                      onMetadataChange={updateMetadata}
-                      onPageTextChange={updatePageText}
-                      onImagePromptChange={updateImagePrompt}
-                      onFlashcardChange={updateFlashcard}
-                    />
-                  </>
-                }
-                previewView={
-                  viewMode.previewStory ? (
-                    <StoryReadOnlyView story={viewMode.previewStory} savedToLibrary />
-                  ) : null
-                }
-              />
-            </div>
+          {isGenerated && sourceGeneratedStory && (
+            <StoryEditProvider
+              storyId={storyId ?? draft.id}
+              draft={draft}
+              generatedStory={sourceGeneratedStory}
+              enabled={isGenerated}
+              onReload={reload}
+              onPersisted={() => {
+                void reload()
+              }}
+              onActionError={setActionError}
+              onValidationFailed={(result) => {
+                setValidationErrors(result)
+                setActionError(null)
+              }}
+            >
+              <StoryEditorPageContent />
+            </StoryEditProvider>
           )}
         </>
       )}

@@ -90,6 +90,7 @@ interface GeneratedMetadataJson {
   summary?: string
   totalWordCount?: number
   generatedAt?: string
+  contentVersion?: number
 }
 
 const UUID_RE =
@@ -169,6 +170,7 @@ function toGeneratedMetadataJson(project: StoryProject): GeneratedMetadataJson {
     return {
       generatedStory: project.generatedStory,
       generationMetadata: project.generationMetadata,
+      contentVersion: project.version,
     }
   }
 
@@ -307,6 +309,7 @@ function buildStoryProjectFromRows(
     imagePrompts: mappedImagePrompts,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    version: generatedMeta.contentVersion,
     setup: setupData.setup ?? undefined,
     planReview: setupData.planReview ?? undefined,
     generatedStory,

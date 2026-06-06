@@ -13,7 +13,8 @@ import {
 import { storyFeedback } from '@/shared/feedback'
 import { useAsyncMutation } from '@/shared/lib/mutations'
 import { StoryEditForm, withRecalculatedWordCounts, type GeneratedStory } from '@/features/stories'
-import { deleteStory, duplicateStory, persistValidatedStoryEdits } from '../api/storyStorageApi'
+import { saveStoryEditorChanges } from '@/features/story-editor/api/saveStoryEditorChanges'
+import { deleteStory, duplicateStory } from '../api/storyStorageApi'
 import { confirmDeleteStory } from '../lib/confirmDeleteStory'
 import { StoryActionsBar, type StoryActionConfig } from '../components/StoryActionsBar'
 import {
@@ -107,12 +108,10 @@ export function StoryDetailPage() {
   function handleSaveChanges() {
     if (!draft || !editedStory || isMutating || !hasChanges) return
 
-    const normalizedStory = withRecalculatedWordCounts(editedStory)
-
-    void mutation.run(() => persistValidatedStoryEdits(draft.id, normalizedStory), {
+    void mutation.run(() => saveStoryEditorChanges(draft.id, editedStory).then(({ story }) => story), {
       optimistic: () => {
         setActionError(null)
-        setOptimisticDisplayStory(normalizedStory)
+        setOptimisticDisplayStory(withRecalculatedWordCounts(editedStory))
         setIsEditing(false)
       },
       rollback: () => {

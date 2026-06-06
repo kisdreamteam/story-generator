@@ -12,6 +12,7 @@ export function mergeGeneratedStoryUpdate(
     ...withContent,
     id: existing.id,
     createdAt: existing.createdAt,
+    version: (existing.version ?? 0) + 1,
     setup: existing.setup,
     planReview: existing.planReview,
     theme: existing.theme,

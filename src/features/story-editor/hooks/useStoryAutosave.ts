@@ -1,14 +1,20 @@
-import { useCallback } from 'react'
-import { persistValidatedStoryEdits } from '@/features/stories/api/storyStorageApi'
+import { useCallback, useRef } from 'react'
 import { useAutosave } from '@/shared/hooks/useAutosave'
-import type { EditableStoryContent } from '../types'
-import type { StoryAutosaveStatus } from '../utils/storyAutosaveStatus'
-import { STORY_EDITOR_AUTOSAVE_DEBOUNCE_MS } from '../types/storyEditor.types'
-import { cloneEditableStory, normalizeEditableStory, storyContentEqual } from '../utils'
+import type { StoryProject } from '@/features/stories/types'
 import {
   isStorySaveValidationFailure,
   type StorySaveValidationResult,
 } from '@/features/stories/utils/storyValidation'
+import { saveStoryEditorChanges } from '../api/saveStoryEditorChanges'
+import type { EditableStoryContent } from '../types'
+import type { StoryAutosaveStatus } from '../utils/storyAutosaveStatus'
+import { STORY_EDITOR_AUTOSAVE_DEBOUNCE_MS } from '../types/storyEditor.types'
+import { cloneEditableStory, normalizeEditableStory, storyContentEqual } from '../utils'
+
+export interface StoryEditorPersistedResult {
+  story: EditableStoryContent
+  project: StoryProject
+}
 
 export interface UseStoryAutosaveOptions {
   storyId: string | undefined
@@ -17,10 +23,9 @@ export interface UseStoryAutosaveOptions {
   isDirty: boolean
   enabled?: boolean
   debounceMs?: number
-  onPersisted?: (savedStory: EditableStoryContent) => void
+  onPersisted?: (result: StoryEditorPersistedResult) => void
   onError?: (error: unknown) => void
   onValidationFailed?: (result: StorySaveValidationResult) => void
-  persist?: (storyId: string, story: EditableStoryContent) => Promise<unknown>
 }
 
 export interface UseStoryAutosaveResult {
@@ -30,7 +35,7 @@ export interface UseStoryAutosaveResult {
   cancelScheduledSave: () => void
 }
 
-  /** Story editor autosave — delegates to {@link useAutosave} with content normalization. */
+/** Story editor autosave — delegates to {@link useAutosave} and {@link saveStoryEditorChanges}. */
 export function useStoryAutosave({
   storyId,
   editedStory,
@@ -41,16 +46,28 @@ export function useStoryAutosave({
   onPersisted,
   onError,
   onValidationFailed,
-  persist = persistValidatedStoryEdits,
 }: UseStoryAutosaveOptions): UseStoryAutosaveResult {
   const normalizedStory = editedStory ? normalizeEditableStory(editedStory) : null
+  const lastSavedProjectRef = useRef<StoryProject | null>(null)
 
   const handleSave = useCallback(
     async (story: EditableStoryContent) => {
       if (!storyId) return
-      await persist(storyId, story)
+
+      const result = await saveStoryEditorChanges(storyId, story)
+      lastSavedProjectRef.current = result.project
     },
-    [persist, storyId],
+    [storyId],
+  )
+
+  const handlePersisted = useCallback(
+    (story: EditableStoryContent) => {
+      const project = lastSavedProjectRef.current
+      if (!project) return
+
+      onPersisted?.({ story, project })
+    },
+    [onPersisted],
   )
 
   const handleError = useCallback(
@@ -74,7 +91,7 @@ export function useStoryAutosave({
     isEqual: storyContentEqual,
     clone: cloneEditableStory,
     onSave: handleSave,
-    onPersisted,
+    onPersisted: handlePersisted,
     onError: handleError,
   })
 }

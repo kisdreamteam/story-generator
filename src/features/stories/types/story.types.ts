@@ -81,6 +81,8 @@ export interface StoryProject {
   createdAt: string
   /** ISO timestamp when the project was last updated. */
   updatedAt: string
+  /** Monotonic content revision — incremented on each successful edit save. */
+  version?: number
   /** Teacher setup preserved for edit and reopen. */
   setup?: StorySetupInput
   /** Latest plan review snapshot, if the teacher reached that step. */

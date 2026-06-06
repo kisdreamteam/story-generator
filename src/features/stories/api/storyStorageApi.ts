@@ -49,7 +49,7 @@ export async function fetchStoryForDetail(id: string): Promise<StoryDetailData |
   return { kind: 'setup-only', draft }
 }
 
-/** Persist edited generated story content without overwriting setup or createdAt. */
+/** Persist edited generated story content without overwriting setup or createdAt. Increments version and updatedAt. */
 export async function persistStoryEdits(id: string, generatedStory: GeneratedStory) {
   return updateStory(id, generatedStory)
 }
