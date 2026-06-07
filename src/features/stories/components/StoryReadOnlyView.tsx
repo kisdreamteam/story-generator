@@ -1,5 +1,5 @@
 import type { GeneratedStory } from '../types'
-import { TeacherHelperNote } from '@/shared/components'
+import { AppBadge, TeacherHelperNote } from '@/shared/components'
 import {
   ImagePromptReviewPanel,
   type ImagePromptReviewPanelProps,
@@ -30,24 +30,14 @@ export function StoryReadOnlyView({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 sm:gap-3">
-        <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700 sm:text-sm">
-          {story.storyPages.length} pages
-        </span>
-        <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700 sm:text-sm">
-          {story.totalWordCount} words
-        </span>
+        <AppBadge>{story.storyPages.length} pages</AppBadge>
+        <AppBadge>{story.totalWordCount} words</AppBadge>
         {showUnsavedHint ? (
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-200 sm:text-sm">
-            Not saved yet
-          </span>
+          <AppBadge tone="warning">Not saved yet</AppBadge>
         ) : savedToLibrary ? (
-          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 sm:text-sm">
-            Saved to library
-          </span>
+          <AppBadge tone="brand">Saved to library</AppBadge>
         ) : (
-          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 sm:text-sm">
-            Preview
-          </span>
+          <AppBadge tone="brand">Preview</AppBadge>
         )}
       </div>
 

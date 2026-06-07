@@ -16,6 +16,8 @@ interface UseCreateStoryDraftLoaderOptions {
   resetForm: (values: StorySetupFormValues) => void
   bumpFormKey: () => void
   clearDraftUiFlags: () => void
+  onPlanDraftLoaded?: () => void
+  onGeneratedDraftLoaded?: () => void
 }
 
 /** Load ?draftId= into workflow store and local form state. */
@@ -25,6 +27,8 @@ export function useCreateStoryDraftLoader({
   resetForm,
   bumpFormKey,
   clearDraftUiFlags,
+  onPlanDraftLoaded,
+  onGeneratedDraftLoaded,
 }: UseCreateStoryDraftLoaderOptions) {
   const { loadDraft } = useStoryDraft()
   const {
@@ -89,6 +93,7 @@ export function useCreateStoryDraftLoader({
           setDraftLoadWarning(null)
           bumpFormKey()
           setStep('generated')
+          onGeneratedDraftLoaded?.()
           return
         }
 
@@ -101,12 +106,13 @@ export function useCreateStoryDraftLoader({
           return
         }
 
-        setSetupData(null)
+        setSetupData(draft!.setup!)
         setGeneratedStory(null)
         resetForm(mapStorySetupInputToFormValues(draft!.setup!))
         setDraftLoadWarning(null)
         bumpFormKey()
         setStep('form')
+        onPlanDraftLoaded?.()
       } finally {
         if (!cancelled) {
           setIsDraftLoading(false)
@@ -129,6 +135,8 @@ export function useCreateStoryDraftLoader({
     resetForm,
     bumpFormKey,
     clearDraftUiFlags,
+    onPlanDraftLoaded,
+    onGeneratedDraftLoaded,
   ])
 
   function resetLoader() {

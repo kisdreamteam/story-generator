@@ -1,3 +1,4 @@
+import { panelShellClass } from '@/shared/styles/surfaceClasses'
 import { LoadingText } from './LoadingText'
 import { skeletonBlockClass } from './skeletonClasses'
 
@@ -25,7 +26,7 @@ export function LoadingCard({
   if (variant === 'compact') {
     return (
       <div
-        className={`rounded-xl border border-stone-200 bg-white px-4 py-6 ${className}`.trim()}
+        className={`${panelShellClass} px-4 py-6 ${className}`.trim()}
         role="status"
         aria-live="polite"
         aria-label={ariaLabel ?? title ?? 'Loading'}
@@ -47,7 +48,7 @@ export function LoadingCard({
 
   return (
     <div
-      className={`rounded-xl border border-stone-200 bg-white p-5 shadow-sm ${className}`.trim()}
+      className={`${panelShellClass} p-5 shadow-sm ${className}`.trim()}
       role="status"
       aria-live="polite"
       aria-label={ariaLabel ?? 'Loading story card'}

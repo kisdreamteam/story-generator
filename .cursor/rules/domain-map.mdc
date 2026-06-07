@@ -1,0 +1,219 @@
+---
+alwaysApply: true
+---
+# Project Domain Rules (HIGH PRIORITY)
+
+Read this before making changes.
+
+The project is organized into domains.
+
+You MUST:
+
+- Identify which domain work belongs to
+- Stay inside the requested domain
+- Warn before crossing domains
+- Avoid redesigning previous domains unless explicitly requested
+- Use Project Source of Truth as higher authority
+
+---
+
+# Domain 1 — Foundation + Architecture [ARCH]
+
+Purpose:
+
+Core architecture and standards.
+
+Owns:
+
+- routing
+- layouts
+- folder structure
+- state patterns
+- docs
+- testing rules
+- naming conventions
+- architecture decisions
+
+Does NOT own:
+
+- teacher workflows
+- AI logic
+- cloud implementation
+- design polish
+
+---
+
+# Domain 2 — Teacher Story Creation [STORY]
+
+Purpose:
+
+Fast teacher first drafts — minimal setup, generate quickly, refine after generation.
+
+Owns:
+
+- setup forms (required fields + collapsed Advanced options)
+- fast create → generate flow (no pre-generation review on happy path)
+- post-generation review / refine (create preview + story detail editing)
+- validation (required fields for generate; optional fields deferred)
+- story planning inputs
+- series selection (when wired)
+
+Principles:
+
+- **Minimum required inputs** upfront — lesson goal, theme, setting, story moments, age, language, page count
+- **Optional inputs** in Advanced options (title, vocabulary, characters, notes)
+- **Generate from the create form** — same `StorySetupInput` contract as before
+- **Refine later** on generated preview or story detail — not before first draft
+
+Does NOT own:
+
+- storage implementation (Domain 3)
+- authentication (Domain 4)
+- AI pipeline / prompts (Domain 6)
+
+See: [docs/domain-2-teacher-flow.md](../docs/domain-2-teacher-flow.md)
+
+---
+
+# Domain 3 — Workspace + Persistence [WORKSPACE]
+
+Purpose:
+
+Make stories reusable — library, detail, editing, drafts, and simple versioning.
+
+Owns:
+
+- drafts and saved stories (library partition: plans vs finished)
+- story dashboard (`/dashboard/stories`)
+- story detail pages and dual edit surfaces (Quick edit + Advanced editor)
+- draft reopen flows (`?draftId=`, continue editing)
+- duplicate, archive, delete workflows
+- version counter + snapshot history surfacing
+- persistence API (`storyStorageApi`)
+
+Principles:
+
+- **Plans** reopen at create form; **finished stories** open on detail
+- **Quick edit** on detail for small changes; **Advanced editor** at `/edit` for structure + history
+- **`version`** increments on each edit save; snapshots capped at 10 per story (local)
+- **Duplicate** resets version; does not copy history or assignments
+
+Does NOT own:
+
+- cloud infrastructure / Supabase schema (Domain 4)
+- AI generation systems (Domain 6)
+- create form UX (Domain 2)
+
+See: [docs/domain-3-story-workspace.md](../docs/domain-3-story-workspace.md)
+
+---
+
+# Domain 4 — Cloud Infrastructure [CLOUD]
+
+Purpose:
+
+Backend systems.
+
+Owns:
+
+- Supabase
+- auth
+- schemas
+- adapters
+- sync
+- migrations
+
+Does NOT own:
+
+- UX redesign
+- AI prompt logic
+
+---
+
+# Domain 5 — Educational Layer [EDU]
+
+Purpose:
+
+Learning systems.
+
+Owns:
+
+- flashcards
+- vocabulary
+- teaching goals
+- activities
+- reading systems
+
+Does NOT own:
+
+- storage
+- backend
+- architecture
+
+---
+
+# Domain 6 — AI + Image Ecosystem [AI]
+
+Purpose:
+
+Generation systems.
+
+Owns:
+
+- prompts
+- generation pipeline
+- image workflows
+- continuity systems
+- mock vs AI boundaries
+
+Does NOT own:
+
+- authentication
+- storage implementation
+- design changes
+
+---
+
+# Domain 7 — Design System + Polish [UI]
+
+Purpose:
+
+Visual systems.
+
+Owns:
+
+- components
+- spacing
+- responsiveness
+- typography
+- animations
+- polish
+
+Does NOT own:
+
+- AI logic
+- cloud logic
+
+---
+
+# Cross Domain Rule
+
+If work affects multiple domains:
+
+1. Identify primary domain
+2. Explain secondary domains
+3. Explain why crossing is necessary
+
+---
+
+# Product Goal Reminder
+
+Teacher First
+
+Simple Setup — required fields only; optional in Advanced options
+
+Generate Quickly — one click from create form
+
+Refine Later — review and edit after generation, on preview or story detail
+
+Avoid unnecessary complexity

@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppEmptyState } from '@/shared/components'
+import { dashboardNarrowEmptyShellClass } from '@/shared/styles/pageShellClasses'
 import type { GeneratedStory } from '@/features/stories/types'
 import { StoryDetailLoadGuard } from '@/features/stories/components/StoryDetailLoadGuard'
 import { StoryReader } from '../components'
@@ -42,7 +43,7 @@ export function StoryReaderPage({ story: storyProp, onExit }: StoryReaderPagePro
       {story ? (
         <StoryReader story={story} onExit={handleExit} />
       ) : hasDraft ? (
-        <div className="mx-auto max-w-lg px-4 py-16">
+        <div className={dashboardNarrowEmptyShellClass}>
           <AppEmptyState
             kind="story-not-generated"
             title="This story is not ready to read"

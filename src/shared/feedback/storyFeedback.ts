@@ -89,6 +89,12 @@ export const storyFeedback = {
     )
   },
 
+  imageGenerationSucceededWithFallback(
+    description = 'Illustration service was unavailable, so a placeholder was used instead.',
+  ) {
+    toast.warning('Placeholder illustration used', description)
+  },
+
   storyClassroomAssignmentsSaved(count: number) {
     const label =
       count === 0
@@ -121,6 +127,24 @@ export const storyFeedback = {
     toast.success(
       'Story deleted',
       trimmed ? `"${trimmed}" was removed from your library.` : 'The story was removed.',
+    )
+  },
+
+  storyArchived(title?: string) {
+    const trimmed = title?.trim()
+    toast.success(
+      'Story archived',
+      trimmed
+        ? `"${trimmed}" was moved to archived stories.`
+        : 'The story was moved to archived stories.',
+    )
+  },
+
+  storyUnarchived(title?: string) {
+    const trimmed = title?.trim()
+    toast.success(
+      'Story restored',
+      trimmed ? `"${trimmed}" is back in your main library.` : 'The story is back in your main library.',
     )
   },
 

@@ -168,6 +168,7 @@ export function buildDuplicatedStoryProject(
       planReview: buildFreshPlanReview(setup),
       generatedStory: clonedGenerated,
       generationMetadata: undefined,
+      version: 0,
       createdAt: base.createdAt,
       updatedAt: now,
     },

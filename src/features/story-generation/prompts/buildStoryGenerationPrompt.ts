@@ -1,4 +1,9 @@
 import type { StorySetupInput } from '@/features/stories/types'
+import {
+  DEFAULT_EXISTING_SERIES_ID,
+  resolveSeriesProfile,
+  SeriesContinuityMode,
+} from '@/features/story-continuity'
 import type {
   StoryGenerationFlashcardRequirements,
   StoryGenerationImagePromptRequirements,
@@ -55,15 +60,53 @@ export function resolveReadingLevelFromAgeRange(ageRange: string): string {
   return READING_LEVEL_BY_AGE_RANGE[normalized] ?? DEFAULT_READING_LEVEL
 }
 
+function mergeUniqueNotes(...groups: string[][]): string[] {
+  const seen = new Set<string>()
+  const merged: string[] = []
+
+  for (const group of groups) {
+    for (const note of group) {
+      const trimmed = note.trim()
+      if (!trimmed) continue
+
+      const key = trimmed.toLowerCase()
+      if (seen.has(key)) continue
+
+      seen.add(key)
+      merged.push(trimmed)
+    }
+  }
+
+  return merged
+}
+
 function buildNinaNinoContinuity(setup: StorySetupInput): StoryGenerationNinaNinoContinuitySection {
+  const profile = resolveSeriesProfile({
+    mode: SeriesContinuityMode.EXISTING,
+    seriesId: DEFAULT_EXISTING_SERIES_ID,
+  })
+
+  const catalogCharacterNotes =
+    profile?.characters
+      .map((character) => `${character.name}: ${character.role}`)
+      .join(' ') ?? ''
+
   const characterNotes =
-    setup.characters.trim() || 'Nina (older sibling) and Nino (younger sibling) as protagonists.'
+    setup.characters.trim() ||
+    catalogCharacterNotes ||
+    'Nina (older sibling) and Nino (younger sibling) as protagonists.'
+
+  const catalogRules = profile?.recurringRules ?? []
+  const catalogVisualNotes = profile?.appearanceNotes ?? []
 
   return {
-    seriesName: NINA_NINO_SERIES_NAME,
-    rules: [...NINA_NINO_CONTINUITY_RULES],
+    seriesName: profile?.name ?? NINA_NINO_SERIES_NAME,
+    rules: mergeUniqueNotes([...NINA_NINO_CONTINUITY_RULES], catalogRules),
     characterNotes,
-    visualStyleNotes: [...NINA_NINO_VISUAL_STYLE_NOTES],
+    visualStyleNotes: mergeUniqueNotes(
+      [...NINA_NINO_VISUAL_STYLE_NOTES],
+      catalogVisualNotes,
+    ),
   }
 }
 
@@ -78,8 +121,8 @@ function buildFlashcardRequirements(pageCount: number): StoryGenerationFlashcard
     rules: [
       `Provide between ${minCount} and ${maxCount} flashcards.`,
       'Each flashcard must include word, simpleDefinition, and exampleSentence.',
-      'Definitions must be age-appropriate and easy for teachers to read aloud.',
-      'Example sentences must come from or closely reflect the story text.',
+      'Definitions must use simple, child-friendly words a teacher can read aloud to young learners.',
+      'Example sentences must be copied from or closely quote the story page text.',
       'Prioritize vocabulary from the teacher focus, lesson goal, and words to include.',
       'Do not introduce flashcard words listed in words to avoid.',
     ],
@@ -94,8 +137,10 @@ function buildImagePromptRequirements(pageCount: number): StoryGenerationImagePr
       `Provide exactly ${pageCount} image prompts — one per story page.`,
       'Each image prompt must include pageNumber, prompt, and continuityReminder.',
       'Prompts must describe a single illustration scene matching the page text.',
-      'Continuity reminders must reference Nina and Nino outfits, props, setting, and art style.',
+      'Continuity reminders must reference Nina (older, indigo) and Nino (younger, emerald green), props, setting, and warm watercolor art style.',
       'Keep character appearance and illustration style consistent across all pages.',
+      'Describe visual scenes only — no speech bubbles, captions, text boxes, signs with readable text, or other written text in the artwork.',
+      'No text overlays, logos, or unsafe elements in illustration descriptions.',
     ],
   }
 }
@@ -140,8 +185,10 @@ function buildSystemPrompt(structured: StoryGenerationStructuredPrompt): string 
   return [
     `You are a children's story writer for the "${ninaNinoContinuity.seriesName}" series.`,
     'Return only valid JSON matching the requested schema.',
+    `Write all story text in ${structured.language}.`,
     `Write for ages ${structured.ageRange}.`,
     `Reading level: ${structured.readingLevel}`,
+    'Nina is the older sister; Nino is the younger brother — distinct ages, not twins.',
     'Preserve Nina & Nino series continuity across characters, settings, tone, and illustrations.',
     'Stories must be age-appropriate, warm, and safe for classroom use.',
     'Use inclusive, respectful language and avoid unsafe or adult themes.',

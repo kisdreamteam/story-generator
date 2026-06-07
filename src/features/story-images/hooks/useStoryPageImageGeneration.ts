@@ -18,6 +18,7 @@ export interface UseStoryPageImageGenerationOptions {
 export interface GenerateMissingImagesResult {
   generated: number[]
   failed: Array<{ pageNumber: number; errorMessage: string }>
+  mockFallbackPages: number[]
 }
 
 export interface UseStoryPageImageGenerationResult {
@@ -26,7 +27,9 @@ export interface UseStoryPageImageGenerationResult {
   generatingPageNumbers: number[]
   isGenerating: boolean
   generateMissingImages: () => Promise<GenerateMissingImagesResult>
-  regeneratePageImage: (pageNumber: number) => Promise<{ ok: boolean; errorMessage?: string }>
+  regeneratePageImage: (
+    pageNumber: number,
+  ) => Promise<{ ok: boolean; errorMessage?: string; usedMockFallback?: boolean }>
   isPageGenerating: (pageNumber: number) => boolean
   isPageReady: (pageNumber: number) => boolean
   lastError: string | null
@@ -65,7 +68,9 @@ export function useStoryPageImageGeneration(
   const isGenerating = generatingPageNumbers.length > 0
 
   const regeneratePageImage = useCallback(
-    async (pageNumber: number): Promise<{ ok: boolean; errorMessage?: string }> => {
+    async (
+      pageNumber: number,
+    ): Promise<{ ok: boolean; errorMessage?: string; usedMockFallback?: boolean }> => {
       if (!story || generatingPageNumbers.includes(pageNumber)) {
         return { ok: false, errorMessage: 'Image generation is already in progress.' }
       }
@@ -89,7 +94,7 @@ export function useStoryPageImageGeneration(
 
         if (outcome.status === 'success') {
           syncStory(outcome.story)
-          return { ok: true }
+          return { ok: true, usedMockFallback: outcome.usedMockFallback }
         }
 
         if (outcome.status === 'failed') {
@@ -113,7 +118,7 @@ export function useStoryPageImageGeneration(
 
   const generateMissingImages = useCallback(async (): Promise<GenerateMissingImagesResult> => {
     if (!story || missingCount === 0 || isGenerating) {
-      return { generated: [], failed: [] }
+      return { generated: [], failed: [], mockFallbackPages: [] }
     }
 
     abortRef.current?.abort()
@@ -145,7 +150,11 @@ export function useStoryPageImageGeneration(
         )
       }
 
-      return { generated: result.generated, failed: result.failed }
+      return {
+        generated: result.generated,
+        failed: result.failed,
+        mockFallbackPages: result.mockFallbackPages,
+      }
     } finally {
       setGeneratingPageNumbers([])
     }

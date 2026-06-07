@@ -1,6 +1,16 @@
-import { resolveImageGenerationAdapter } from '../adapters/resolveImageGenerationAdapter'
-import type { ImageGenerationAdapterResult } from '../adapters/imageGenerationAdapter.types'
+import {
+  getMockImageGenerationAdapter,
+  resolveImageGenerationAdapter,
+} from '../adapters/resolveImageGenerationAdapter'
+import { isImageGenerationBackendError } from '../adapters/realImageGenerationAdapter'
+import type {
+  ImageGenerationAdapter,
+  ImageGenerationAdapterOptions,
+  ImageGenerationAdapterRequest,
+  ImageGenerationAdapterResult,
+} from '../adapters/imageGenerationAdapter.types'
 import type { GeneratedStory, StoryPage } from '@/features/stories/types'
+import { isRealImageGenerationMode } from '@/shared/config/imageGenerationConfig'
 import { StoryPageImageStatuses } from '../types/storyImage.types'
 import {
   applyStoryPageImageFields,
@@ -23,14 +33,99 @@ export interface GenerateStoryPageImageOptions {
 export type GenerateStoryPageImageOutcome =
   | { status: 'skipped' }
   | { status: 'invalid'; errorMessage: string }
-  | { status: 'success'; story: GeneratedStory; result: Extract<ImageGenerationAdapterResult, { ok: true }> }
+  | {
+      status: 'success'
+      story: GeneratedStory
+      result: Extract<ImageGenerationAdapterResult, { ok: true }>
+      usedMockFallback?: boolean
+    }
   | { status: 'failed'; story: GeneratedStory; errorMessage: string }
 
 function findStoryPage(story: GeneratedStory, pageNumber: number): StoryPage | null {
   return story.storyPages.find((page) => page.pageNumber === pageNumber) ?? null
 }
 
-/** Generate one page illustration through the mock adapter boundary. */
+function isAbortError(error: unknown): boolean {
+  if (isImageGenerationBackendError(error) && error.code === 'ABORTED') {
+    return true
+  }
+
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true
+  }
+
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function isAdapterValidationOrAbortFailure(
+  result: ImageGenerationAdapterResult,
+): result is Extract<ImageGenerationAdapterResult, { ok: false }> {
+  return !result.ok && (result.code === 'VALIDATION' || result.code === 'ABORTED')
+}
+
+async function runAdapterGenerateImage(
+  adapter: ImageGenerationAdapter,
+  request: ImageGenerationAdapterRequest,
+  options?: ImageGenerationAdapterOptions,
+): Promise<ImageGenerationAdapterResult> {
+  return adapter.generateImage(request, options)
+}
+
+async function generateImageWithOptionalFallback(
+  request: ImageGenerationAdapterRequest,
+  options?: ImageGenerationAdapterOptions,
+): Promise<{ result: Extract<ImageGenerationAdapterResult, { ok: true }>; usedMockFallback: boolean }> {
+  const adapter = await resolveImageGenerationAdapter()
+
+  if (!isRealImageGenerationMode()) {
+    const result = await runAdapterGenerateImage(adapter, request, options)
+
+    if (!result.ok) {
+      throw result
+    }
+
+    return { result, usedMockFallback: false }
+  }
+
+  try {
+    const result = await runAdapterGenerateImage(adapter, request, options)
+
+    if (!result.ok) {
+      throw result
+    }
+
+    return { result, usedMockFallback: false }
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error
+    }
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'ok' in error &&
+      isAdapterValidationOrAbortFailure(error as ImageGenerationAdapterResult)
+    ) {
+      throw error
+    }
+
+    console.warn(
+      '[Story Images] Real image adapter failed; using mock placeholder.',
+      error instanceof Error ? error.message : error,
+    )
+
+    const mockAdapter = getMockImageGenerationAdapter()
+    const fallbackResult = await runAdapterGenerateImage(mockAdapter, request, options)
+
+    if (!fallbackResult.ok) {
+      throw fallbackResult
+    }
+
+    return { result: fallbackResult, usedMockFallback: true }
+  }
+}
+
+/** Generate one page illustration through the image adapter boundary. */
 export async function generateStoryPageImage(
   options: GenerateStoryPageImageOptions,
 ): Promise<GenerateStoryPageImageOutcome> {
@@ -63,18 +158,18 @@ export async function generateStoryPageImage(
   })
   onProgress?.(workingStory)
 
-  const adapter = await resolveImageGenerationAdapter()
-  const result = await adapter.generateImage(
-    {
-      storyId,
-      pageNumber,
-      prompt,
-      continuityReminder,
-    },
-    { signal },
-  )
+  const adapterRequest: ImageGenerationAdapterRequest = {
+    storyId,
+    pageNumber,
+    prompt,
+    continuityReminder,
+  }
 
-  if (result.ok) {
+  try {
+    const { result, usedMockFallback } = await generateImageWithOptionalFallback(adapterRequest, {
+      signal,
+    })
+
     return {
       status: 'success',
       story: applyStoryPageImageFields(workingStory, pageNumber, {
@@ -85,27 +180,53 @@ export async function generateStoryPageImage(
         imageError: undefined,
       }),
       result,
+      usedMockFallback,
     }
-  }
+  } catch (error) {
+    if (isAbortError(error)) {
+      workingStory = applyStoryPageImageFields(workingStory, pageNumber, {
+        ...previousFields,
+        imageStatus: StoryPageImageStatuses.NONE,
+      })
 
-  if (force && hadReadyImage) {
-    workingStory = applyStoryPageImageFields(workingStory, pageNumber, {
-      ...previousFields,
-    })
-  } else {
-    workingStory = applyStoryPageImageFields(workingStory, pageNumber, {
-      imagePrompt: prompt,
-      imageStatus: StoryPageImageStatuses.FAILED,
-      imageError: result.errorMessage,
-      imageUrl: undefined,
-      imageGeneratedAt: undefined,
-    })
-  }
+      return {
+        status: 'failed',
+        story: workingStory,
+        errorMessage: 'Image generation was cancelled.',
+      }
+    }
 
-  return {
-    status: 'failed',
-    story: workingStory,
-    errorMessage: result.errorMessage,
+    const adapterFailure =
+      typeof error === 'object' &&
+      error !== null &&
+      'ok' in error &&
+      (error as ImageGenerationAdapterResult).ok === false
+        ? (error as Extract<ImageGenerationAdapterResult, { ok: false }>)
+        : null
+
+    const errorMessage =
+      adapterFailure?.errorMessage ??
+      (error instanceof Error ? error.message : 'Image generation failed.')
+
+    if (force && hadReadyImage) {
+      workingStory = applyStoryPageImageFields(workingStory, pageNumber, {
+        ...previousFields,
+      })
+    } else {
+      workingStory = applyStoryPageImageFields(workingStory, pageNumber, {
+        imagePrompt: prompt,
+        imageStatus: StoryPageImageStatuses.FAILED,
+        imageError: errorMessage,
+        imageUrl: undefined,
+        imageGeneratedAt: undefined,
+      })
+    }
+
+    return {
+      status: 'failed',
+      story: workingStory,
+      errorMessage,
+    }
   }
 }
 
@@ -120,6 +241,7 @@ export async function generateMissingStoryPageImages(options: {
   generated: number[]
   failed: Array<{ pageNumber: number; errorMessage: string }>
   skipped: number[]
+  mockFallbackPages: number[]
 }> {
   const pagesToGenerate = options.story.storyPages.filter(
     (page) => !isStoryPageImageReady(page, options.story.imagePrompts),
@@ -129,6 +251,7 @@ export async function generateMissingStoryPageImages(options: {
   const generated: number[] = []
   const failed: Array<{ pageNumber: number; errorMessage: string }> = []
   const skipped: number[] = []
+  const mockFallbackPages: number[] = []
 
   for (const page of pagesToGenerate) {
     if (options.signal?.aborted) {
@@ -162,11 +285,14 @@ export async function generateMissingStoryPageImages(options: {
 
     if (outcome.status === 'success') {
       generated.push(page.pageNumber)
+      if (outcome.usedMockFallback) {
+        mockFallbackPages.push(page.pageNumber)
+      }
       continue
     }
 
     failed.push({ pageNumber: page.pageNumber, errorMessage: outcome.errorMessage })
   }
 
-  return { story: workingStory, generated, failed, skipped }
+  return { story: workingStory, generated, failed, skipped, mockFallbackPages }
 }

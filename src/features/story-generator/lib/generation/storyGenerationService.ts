@@ -216,10 +216,15 @@ function finalizePipelineResult(
   }
 
   if (result.status === 'partial') {
-    wrapProviderFailure(
-      new Error(result.errors.map((error) => error.message).join('; ')),
-      toPartialAIGenerationOutput(result),
-    )
+    try {
+      assertValidGeneratedStoryOutput(result.output)
+      return result.output
+    } catch {
+      wrapProviderFailure(
+        new Error(result.errors.map((error) => error.message).join('; ')),
+        toPartialAIGenerationOutput(result),
+      )
+    }
   }
 
   assertValidGeneratedStoryOutput(result.output)

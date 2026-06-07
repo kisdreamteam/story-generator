@@ -1,4 +1,4 @@
-import { AppButton } from '@/shared/components'
+import { AppBadge, AppButton } from '@/shared/components'
 import type { StoryReaderCoverSlide } from '../types'
 
 interface StoryReaderCoverProps {
@@ -25,12 +25,10 @@ export function StoryReaderCover({ slide, onBegin }: StoryReaderCoverProps) {
       ) : null}
 
       <div className="mt-8 flex flex-wrap justify-center gap-2">
-        <span className="rounded-full bg-white px-3 py-1 text-sm font-medium text-stone-700 ring-1 ring-stone-200">
+        <AppBadge tone="outline">
           {slide.pageCount} {slide.pageCount === 1 ? 'page' : 'pages'}
-        </span>
-        <span className="rounded-full bg-white px-3 py-1 text-sm font-medium text-stone-700 ring-1 ring-stone-200">
-          {slide.wordCount} words
-        </span>
+        </AppBadge>
+        <AppBadge tone="outline">{slide.wordCount} words</AppBadge>
       </div>
 
       {onBegin ? (

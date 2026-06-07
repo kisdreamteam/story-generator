@@ -95,4 +95,6 @@ export interface StoryProject {
   generationMetadata?: StoryGenerationMetadata
   /** Teacher lifecycle status — optional for legacy projects; derived when missing. */
   lifecycleStatus?: StoryLifecycleStatus
+  /** When set, story is archived and hidden from the default library list. */
+  archivedAt?: string | null
 }

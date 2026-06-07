@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppEmptyState, PageHeader } from '@/shared/components'
+import { dashboardNarrowEmptyShellClass, dashboardPageShellClass } from '@/shared/styles/pageShellClasses'
+import { panelShellClass } from '@/shared/styles/surfaceClasses'
 import { StoryDetailLoadGuard } from '@/features/stories/components/StoryDetailLoadGuard'
 import { useStoryDetail } from '@/features/stories/hooks/useStoryDetail'
 import { storyReaderContentFromProject } from '@/features/story-reader/lib/storyReaderFromProject'
@@ -45,8 +47,8 @@ export function StoryPrintPage() {
             actions={<StoryPrintActions onBack={handleBack} />}
           />
 
-          <div className="mx-auto max-w-3xl px-1 sm:px-0">
-            <div className="story-export-no-print mb-6 rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+          <div className={`${dashboardPageShellClass} max-w-3xl`}>
+            <div className={`story-export-no-print mb-6 p-4 text-sm text-stone-600 ${panelShellClass}`}>
               Use your browser&apos;s print dialog to save as PDF later. Dedicated PDF export is not
               available yet.
             </div>
@@ -57,7 +59,7 @@ export function StoryPrintPage() {
           </div>
         </>
       ) : hasDraft ? (
-        <div className="mx-auto max-w-lg px-4 py-16">
+        <div className={dashboardNarrowEmptyShellClass}>
           <AppEmptyState
             kind="story-not-generated"
             title="Generate the story first"

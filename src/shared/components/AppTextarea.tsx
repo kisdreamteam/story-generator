@@ -1,5 +1,13 @@
 import { forwardRef } from 'react'
 import type { TextareaHTMLAttributes } from 'react'
+import {
+  formControlBaseClass,
+  formControlBorderClass,
+  formErrorClass,
+  formFieldWrapperClass,
+  formHintClass,
+  formLabelClass,
+} from '@/shared/styles/formFieldClasses'
 
 interface AppTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
@@ -12,9 +20,9 @@ export const AppTextarea = forwardRef<HTMLTextAreaElement, AppTextareaProps>(
     const textareaId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
 
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className={formFieldWrapperClass}>
         {label && (
-          <label htmlFor={textareaId} className="text-sm font-medium text-stone-700">
+          <label htmlFor={textareaId} className={formLabelClass}>
             {label}
           </label>
         )}
@@ -22,18 +30,17 @@ export const AppTextarea = forwardRef<HTMLTextAreaElement, AppTextareaProps>(
           ref={ref}
           id={textareaId}
           className={[
-            'w-full rounded-lg border bg-white px-3 py-2 text-sm text-stone-900',
-            'placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-brand-400',
+            formControlBaseClass,
+            formControlBorderClass(Boolean(error)),
             'min-h-[100px] resize-y',
-            error ? 'border-red-400' : 'border-stone-200',
             className,
           ]
             .filter(Boolean)
             .join(' ')}
           {...props}
         />
-        {hint && !error && <p className="text-xs text-stone-500">{hint}</p>}
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {hint && !error && <p className={formHintClass}>{hint}</p>}
+        {error && <p className={formErrorClass}>{error}</p>}
       </div>
     )
   },

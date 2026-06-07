@@ -24,23 +24,82 @@ export interface StorySetupFormValues {
 
 export const storySetupFormDefaults: StorySetupFormValues = {
   lessonGoal: 'Learn fire safety words and describe community helpers.',
-  learningObjectives: 'Name community helpers, practice safety vocabulary, retell key events.',
-  vocabularyWords: 'fire station, firefighter, helmet, hose, safety',
-  title: 'Nina and Nino Visit the Fire Station',
+  learningObjectives: '',
+  vocabularyWords: '',
+  title: '',
   theme: 'Field trip to a fire station',
   setting: 'City fire station and classroom',
   ageRange: '4-6',
   language: DEFAULT_LANGUAGE,
   pageCount: '12',
-  mainCharacters: 'Nina (older sibling), Nino (younger sibling)',
-  additionalCharacters: 'Ms. Lee (teacher), Firefighter Ana, classmates',
+  mainCharacters: '',
+  additionalCharacters: '',
   majorEvents: `Class learns about the field trip
 Walk to the fire station
 Meet Firefighter Ana
 Explore the fire truck and gear
 Practice safety skills
 Share what they learned at school`,
-  additionalNotes: 'Keep tone warm and classroom-friendly. Nina and Nino are siblings, not twins.',
+  additionalNotes: '',
+}
+
+/** Fields required before story generation (matches validateAIStoryInput). */
+export const STORY_SETUP_REQUIRED_FIELD_KEYS = [
+  'lessonGoal',
+  'theme',
+  'setting',
+  'majorEvents',
+  'ageRange',
+  'language',
+  'pageCount',
+] as const satisfies readonly (keyof StorySetupFormValues)[]
+
+/** Optional fields — shown in Advanced options; empty values are fine. */
+export const STORY_SETUP_OPTIONAL_FIELD_KEYS = [
+  'learningObjectives',
+  'vocabularyWords',
+  'title',
+  'mainCharacters',
+  'additionalCharacters',
+  'additionalNotes',
+] as const satisfies readonly (keyof StorySetupFormValues)[]
+
+export type StorySetupFormErrors = Partial<Record<keyof StorySetupFormValues, string>>
+
+/** Validate required fields for the fast create → generate path. */
+export function validateFastStorySetupForm(values: StorySetupFormValues): StorySetupFormErrors {
+  const errors: StorySetupFormErrors = {}
+
+  if (!values.lessonGoal.trim()) {
+    errors.lessonGoal = 'Add a lesson goal so the story supports your teaching.'
+  }
+
+  if (!values.theme.trim()) {
+    errors.theme = 'Add a theme — the main idea your story explores.'
+  }
+
+  if (!values.setting.trim()) {
+    errors.setting = 'Add a setting — where the story takes place.'
+  }
+
+  const eventCount = values.majorEvents
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean).length
+
+  if (eventCount === 0) {
+    errors.majorEvents = 'Add at least one story moment — one per line.'
+  }
+
+  if (!values.pageCount.trim()) {
+    errors.pageCount = 'Choose a page count.'
+  }
+
+  return errors
+}
+
+export function hasStorySetupFormErrors(errors: StorySetupFormErrors): boolean {
+  return Object.keys(errors).length > 0
 }
 
 /** Story setup defaults with saved app preferences applied. */
@@ -137,7 +196,6 @@ export function areStorySetupInputsEqual(left: StorySetupInput, right: StorySetu
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
-/** Maps teacher-facing form fields to the shared StorySetupInput contract. */
 export function mapStorySetupFormToInput(values: StorySetupFormValues): StorySetupInput {
   const noteLines = [
     values.title.trim() ? `${WORKING_TITLE_PREFIX}${values.title.trim()}` : '',

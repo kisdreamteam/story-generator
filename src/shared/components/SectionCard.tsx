@@ -6,11 +6,12 @@ interface SectionCardProps {
   description?: string
   children: ReactNode
   badge?: ReactNode
+  className?: string
 }
 
-export function SectionCard({ title, description, children, badge }: SectionCardProps) {
+export function SectionCard({ title, description, children, badge, className = '' }: SectionCardProps) {
   return (
-    <AppCard>
+    <AppCard className={className}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-stone-900">{title}</h2>

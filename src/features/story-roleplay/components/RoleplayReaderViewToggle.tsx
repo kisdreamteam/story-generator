@@ -1,5 +1,7 @@
 import type { RoleplayReaderView } from '../hooks/useRoleplayReader'
 
+import { insetPanelShellClass } from '@/shared/styles/surfaceClasses'
+
 interface RoleplayReaderViewToggleProps {
   view: RoleplayReaderView
   onViewChange: (view: RoleplayReaderView) => void
@@ -8,7 +10,7 @@ interface RoleplayReaderViewToggleProps {
 export function RoleplayReaderViewToggle({ view, onViewChange }: RoleplayReaderViewToggleProps) {
   return (
     <div
-      className="grid grid-cols-2 gap-2 rounded-xl border border-stone-200 bg-stone-50 p-1 sm:inline-grid sm:w-auto"
+      className={`grid grid-cols-2 gap-2 p-1 sm:inline-grid sm:w-auto ${insetPanelShellClass}`}
       role="tablist"
       aria-label="Roleplay view"
     >

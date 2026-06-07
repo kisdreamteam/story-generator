@@ -17,6 +17,7 @@ export function attachGeneratedStoryToProject(
     generatedStory,
     generationMetadata: generationMetadata ?? project.generationMetadata,
     updatedAt: new Date().toISOString(),
+    version: project.version ?? 0,
   }
 
   if (project.lifecycleStatus === 'completed') {

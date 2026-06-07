@@ -20,6 +20,8 @@ export interface StoryHeaderProps {
   summary?: string
   pageCount: number
   totalWordCount: number
+  versionBadge?: string | null
+  updatedAtLabel?: string
   /** When true, hides the read-only badge (e.g. edit mode or setup-only draft). */
   hideReadOnlyBadge?: boolean
 }

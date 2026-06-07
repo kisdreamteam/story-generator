@@ -17,6 +17,11 @@ interface ImportMetaEnv {
   readonly VITE_AI_MODEL: string
   readonly VITE_AI_GENERATION_ENABLED: string
   readonly VITE_AI_FIXTURE_MODE: string
+  /** Page illustration mode: mock | ai (independent of VITE_GENERATION_MODE) */
+  readonly VITE_IMAGE_GENERATION_MODE: string
+  readonly VITE_IMAGE_GENERATION_API_URL: string
+  readonly VITE_IMAGE_PROVIDER: string
+  readonly VITE_IMAGE_MODEL: string
 }
 
 interface ImportMeta {

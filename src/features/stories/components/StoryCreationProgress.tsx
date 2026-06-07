@@ -6,9 +6,9 @@ const storyCreationSteps: {
   shortLabel: string
   helper: string
 }[] = [
-  { id: 'setup', label: 'Plan your story', shortLabel: 'Plan', helper: 'Lesson goals and story setup' },
-  { id: 'review', label: 'Review plan', shortLabel: 'Review', helper: 'Save or generate' },
-  { id: 'generated', label: 'Your story', shortLabel: 'Story', helper: 'Read and save' },
+  { id: 'setup', label: 'Create story', shortLabel: 'Create', helper: 'Lesson basics' },
+  { id: 'review', label: 'Generate', shortLabel: 'Generate', helper: 'Creating pages' },
+  { id: 'generated', label: 'Review & refine', shortLabel: 'Refine', helper: 'Edit and save' },
 ]
 
 interface StoryCreationProgressProps {
@@ -23,7 +23,7 @@ export function StoryCreationProgress({ currentStep }: StoryCreationProgressProp
   const activeIndex = stepIndex(currentStep)
 
   return (
-    <nav aria-label="Create story progress" className="mx-auto max-w-2xl">
+    <nav aria-label="Create story progress" className="min-w-0 flex-1">
       <ol className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {storyCreationSteps.map((step, index) => {
           const isComplete = index < activeIndex

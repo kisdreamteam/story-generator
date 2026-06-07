@@ -1,8 +1,15 @@
-# Story Generation API (placeholder)
+# Story Generation API
 
-This folder is a **backend route placeholder** for AI story generation. The Vite dev server exposes `POST /api/story-generation` via middleware and forwards requests to `handleStoryGenerationRequest.ts`.
+Server-side handler for AI story text generation. The browser never holds provider secrets.
 
-When you deploy a backend, copy the handler (or import this file) into your platform of choice.
+## Routes
+
+| Environment | Entry |
+|-------------|-------|
+| **Local dev** | Vite middleware in `vite.config.ts` → `POST /api/story-generation` |
+| **Vercel** | `api/story-generation.ts` → `POST /api/story-generation` |
+
+Both delegate to `handleStoryGenerationRequest.ts`.
 
 ## Feature flag (frontend)
 
@@ -80,8 +87,8 @@ If you change request/response shapes in the frontend, update:
 
 ## Platform notes
 
-- **Vite dev** — middleware in `vite.config.ts` (already wired)
-- **Vercel** — App Router route handler importing `handleStoryGenerationRequest`
+- **Vite dev** — middleware in `vite.config.ts` (wired)
+- **Vercel** — `api/story-generation.ts` imports this handler (wired)
 - **Netlify** — `netlify/functions/story-generation.ts`
 - **Express** — `app.post('/api/story-generation', ...)`
 - **Supabase Edge Functions** — `supabase/functions/story-generation/index.ts`

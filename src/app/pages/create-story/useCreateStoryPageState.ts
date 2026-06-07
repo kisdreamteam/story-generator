@@ -93,6 +93,8 @@ export function useCreateStoryPageState() {
     resetForm,
     bumpFormKey,
     clearDraftUiFlags,
+    onPlanDraftLoaded: () => setDraftSaved(true),
+    onGeneratedDraftLoaded: () => setStorySaved(true),
   })
 
   const {
@@ -117,7 +119,7 @@ export function useCreateStoryPageState() {
       setStorySaved(snapshot.storySaved)
       setSaveError(null)
       setDraftSaveError(null)
-      setStep(snapshot.step)
+      setStep(snapshot.step === 'review' ? 'form' : snapshot.step)
       bumpFormKey()
     },
     [workflow, bumpFormKey],
@@ -339,12 +341,60 @@ export function useCreateStoryPageState() {
     [deleteTemplate, selectedTemplateId, templateSummaries],
   )
 
+  function triggerGeneration(data: StorySetupInput) {
+    if (isGenerating || isConfirming || confirmInFlightRef.current) return
+
+    confirmInFlightRef.current = true
+    setIsConfirming(true)
+    setStorySaved(false)
+    setSaveError(null)
+    setStep('generated')
+
+    void (async () => {
+      try {
+        const output = await runGeneration(data)
+
+        try {
+          const saved = await saveGeneratedStory(data, output)
+          clearSession()
+          setStorySaved(true)
+          storyFeedback.storySaved()
+          navigateToStoryDetail(saved.id)
+        } catch (error) {
+          const message = formatTeacherFacingSaveError(error)
+          setSaveError(message)
+          storyFeedback.storyGenerated()
+          storyFeedback.cloudSyncFailed(message)
+        }
+      } catch {
+        // Generation errors are stored in useGenerationStore.
+      } finally {
+        confirmInFlightRef.current = false
+        setIsConfirming(false)
+      }
+    })()
+  }
+
   function handleFormSubmit(data: StorySetupInput) {
     workflow.setSetupData(data)
     setFormValues(mapStorySetupInputToFormValues(data))
     setDraftSaved(false)
     setDraftSaveError(null)
-    setStep('review')
+    triggerGeneration(data)
+  }
+
+  function handleSavePlan() {
+    if (isGenerating || isConfirming || formDraftAutosave.isSaving) return
+
+    const input = mapStorySetupFormToInput(liveFormValues)
+    workflow.setSetupData(input)
+
+    void (async () => {
+      const saved = await formDraftAutosave.flushSave()
+      if (saved) {
+        storyFeedback.planSaved()
+      }
+    })()
   }
 
   function handleBackToEdit() {
@@ -372,37 +422,8 @@ export function useCreateStoryPageState() {
   }
 
   function handleConfirm() {
-    if (!setupData || isGenerating || isConfirming || confirmInFlightRef.current) return
-
-    confirmInFlightRef.current = true
-    setIsConfirming(true)
-    setStorySaved(false)
-    setSaveError(null)
-    setStep('generated')
-
-    void (async () => {
-      try {
-        const output = await runGeneration(setupData)
-
-        try {
-          const saved = await saveGeneratedStory(setupData, output)
-          clearSession()
-          setStorySaved(true)
-          storyFeedback.storySaved()
-          navigateToStoryDetail(saved.id)
-        } catch (error) {
-          const message = formatTeacherFacingSaveError(error)
-          setSaveError(message)
-          storyFeedback.storyGenerated()
-          storyFeedback.cloudSyncFailed(message)
-        }
-      } catch {
-        // Generation errors are stored in useGenerationStore.
-      } finally {
-        confirmInFlightRef.current = false
-        setIsConfirming(false)
-      }
-    })()
+    if (!setupData) return
+    triggerGeneration(setupData)
   }
 
   function handleCancelGeneration() {
@@ -471,8 +492,12 @@ export function useCreateStoryPageState() {
     resetGeneration()
     setSaveError(null)
     if (setupData) {
-      setStep('review')
+      const values = mapStorySetupInputToFormValues(setupData)
+      setFormValues(values)
+      setLiveFormValues(values)
+      bumpFormKey()
     }
+    setStep('form')
   }
 
   function handleSaveStory() {
@@ -493,14 +518,16 @@ export function useCreateStoryPageState() {
   }
 
   function handleViewStory() {
-    if (activeDraftId) {
-      navigateToStoryDetail(activeDraftId)
+    const targetId = activeDraftId ?? lastSavedProjectIdRef.current
+    if (targetId) {
+      navigateToStoryDetail(targetId)
     }
   }
 
   function handleEditStory() {
-    if (activeDraftId) {
-      navigate(`/dashboard/stories/${encodeURIComponent(activeDraftId)}/edit`)
+    const targetId = activeDraftId ?? lastSavedProjectIdRef.current
+    if (targetId) {
+      navigate(`/dashboard/stories/${encodeURIComponent(targetId)}/edit`)
     }
   }
 
@@ -530,6 +557,8 @@ export function useCreateStoryPageState() {
     showGeneratedPreview,
     handleFormValuesChange,
     handleFormSubmit,
+    handleSavePlan,
+    isSavingPlan: formDraftAutosave.isSaving,
     handleApplyTemplate,
     handleSaveTemplate,
     handleDeleteTemplate,

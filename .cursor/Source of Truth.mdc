@@ -1,0 +1,334 @@
+---
+alwaysApply: true
+---
+# PROJECT SOURCE OF TRUTH
+
+## Nina & Nino Story Creator (Current V1)
+
+---
+
+# 1. Project Purpose (LOCKED)
+
+**Primary Goal**
+
+Help teachers create age-appropriate stories faster.
+
+**Target User**
+
+Teachers teaching young learners.
+
+**Current Audience**
+
+Teachers only.
+
+**Success Definition**
+
+A teacher can:
+
+```text
+Create Story
+↓
+
+Review Story
+
+↓
+
+Generate Story
+
+↓
+
+Save Story
+
+↓
+
+Use Story In Class
+```
+
+NOT:
+
+```text
+Build the biggest AI ecosystem possible
+```
+
+---
+
+# 2. Product Principles (LOCKED)
+
+These rarely change.
+
+### Rules:
+
+* Teacher-first UX
+* Local-first safety
+* AI should reduce friction, not create friction
+* English generation first
+* Simple > clever
+* Mock-first architecture
+* Mobile friendly
+* Architecture should support growth but not force growth
+
+---
+
+# 3. Core Product Scope (V1)
+
+## MUST HAVE
+
+* Story creation
+* Story generation
+* Flashcards
+* Image prompts
+* Save stories
+* Reopen stories
+* Story continuity
+* Teacher workflow
+
+## NICE TO HAVE
+
+* Roleplay scripts
+* Classroom assignment
+* Translation
+
+## NOT V1
+
+* Teams
+* Curriculum engine
+* School management
+* Student accounts
+* Payments
+* Massive admin systems
+
+---
+
+# 4. Domain Map (ACTIVE)
+
+```text
+Domain 1
+Foundation + Architecture
+
+Domain 2
+Teacher Story Creation
+
+Domain 3
+Workspace + Persistence
+
+Domain 4
+Cloud Infrastructure
+
+Domain 5
+Educational Layer
+
+Domain 6
+AI + Image Ecosystem
+
+Domain 7
+Design System + Polish
+```
+
+Rule:
+
+```text
+New work must belong somewhere.
+
+If it belongs nowhere:
+
+Create new domain
+
+OR
+
+Reject work
+```
+
+---
+
+# 5. Locked Decisions
+
+These become very important.
+
+### Tech
+
+```text
+Vite
+React
+Typescript
+Tailwind
+Zustand
+Supabase
+```
+
+### Story Rules
+
+```text
+English default
+
+KR + VI future
+
+Nina older sister
+
+Nino younger brother
+
+Not twins
+```
+
+### Architecture Rules
+
+```text
+Feature-first
+
+Storage abstraction
+
+Provider boundaries
+
+Mock-first
+
+No direct component AI calls
+
+No direct component storage calls
+```
+
+---
+
+# 6. Current Product State (CHANGES OFTEN)
+
+Current reality:
+
+```text
+Teacher setup flow
+
+↓
+
+Review flow
+
+↓
+
+Generation flow
+
+↓
+
+Save drafts
+
+↓
+
+Save stories
+
+↓
+
+Story detail routes
+
+↓
+
+Local storage
+
+↓
+
+Optional cloud storage
+
+↓
+
+Migration flow
+
+↓
+
+Mock / AI boundary
+```
+
+---
+
+# 7. Current Priorities (ONLY 3)
+
+Example:
+
+```text
+1. Finish Domain 6 AI ecosystem
+
+2. Validate teacher workflow
+
+3. Prevent project drift
+```
+
+Only 3.
+
+Not 20.
+
+---
+
+# 8. Open Questions
+
+Examples:
+
+```text
+Should existing series work differently?
+
+Should image review use collage?
+
+Should classroom mode exist in V1?
+
+Should exports happen before images?
+```
+
+Open questions should NOT become tasks automatically.
+
+---
+
+# 9. Future Ideas Parking Lot
+
+Put dangerous ideas here:
+
+```text
+Context planner app
+
+AI memory system
+
+Teacher sharing
+
+Student mode
+
+Teams
+
+Curriculum engine
+```
+
+Important:
+
+```text
+Ideas ≠ roadmap
+```
+
+---
+
+# 10. Drift Detection Rules
+
+This is the part we were missing.
+
+Examples:
+
+If:
+
+```text
+Repeated architecture discussions
+
+Repeated AI boundary discussions
+
+Repeated editing discussions
+
+Repeated storage discussions
+```
+
+Then ask:
+
+```text
+Are we rebuilding something?
+
+Does this belong elsewhere?
+
+Has this already been decided?
+```
+
+---
+
+This is probably what I would maintain if I were helping you continue this project.
+
+Notice something:
+
+**There is almost nothing here about phases.**
+
+Because phases were never the real product structure.

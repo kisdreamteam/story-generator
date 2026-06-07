@@ -191,25 +191,54 @@ const mockImagePrompts: AIImagePromptOutput[] = [
 
 const totalWordCount = storyPages.reduce((total, page) => total + page.wordCount, 0)
 
-export function buildMockAIStoryCore(): AIStoryCoreOutput {
+export const MOCK_STORY_MAX_PAGE_COUNT = storyPages.length
+
+function clampMockPageCount(pageCount: number): number {
+  if (!Number.isFinite(pageCount) || pageCount < 1) {
+    return 1
+  }
+
+  return Math.min(Math.floor(pageCount), storyPages.length)
+}
+
+/** Slice mock story pages to the teacher-selected page count. */
+export function sliceMockStoryByPageCount(pageCount: number): AIStoryPageOutput[] {
+  const count = clampMockPageCount(pageCount)
+  return storyPages.filter((page) => page.pageNumber <= count)
+}
+
+/** Slice mock image prompts to match the story page count. */
+export function sliceMockImagePromptsByPageCount(pageCount: number): AIImagePromptOutput[] {
+  const count = clampMockPageCount(pageCount)
+  return mockImagePrompts.filter((prompt) => prompt.pageNumber <= count)
+}
+
+export function buildMockAIStoryCore(pageCount?: number): AIStoryCoreOutput {
+  const pages = pageCount == null ? storyPages : sliceMockStoryByPageCount(pageCount)
+  const pageTotalWordCount = pages.reduce((total, page) => total + page.wordCount, 0)
+
   return {
     title: 'Nina and Nino Visit the Fire Station',
     summary:
       'Nina and Nino join their class on a field trip to the fire station. They meet firefighters, explore a fire truck, practice safety skills, and learn how community helpers keep people safe.',
-    storyPages,
-    totalWordCount,
+    storyPages: pages,
+    totalWordCount: pageCount == null ? totalWordCount : pageTotalWordCount,
     generatedAt: MOCK_AI_GENERATED_AT,
   }
 }
 
-export function buildMockAIStoryGenerationResult(): AIStoryGenerationResult {
+export function buildMockAIStoryGenerationResult(pageCount?: number): AIStoryGenerationResult {
   return {
-    story: buildMockAIStoryCore(),
+    story: buildMockAIStoryCore(pageCount),
     flashcards: mockFlashcards,
   }
 }
 
 /** Static mock image prompts used by the dashboard flow today. */
-export function getMockAIImagePrompts(): AIImagePromptOutput[] {
-  return mockImagePrompts
+export function getMockAIImagePrompts(pageCount?: number): AIImagePromptOutput[] {
+  if (pageCount == null) {
+    return mockImagePrompts
+  }
+
+  return sliceMockImagePromptsByPageCount(pageCount)
 }

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { dashboardPageStackClass } from '@/shared/styles/pageShellClasses'
 import {
   AppButton,
   AppErrorState,
@@ -33,7 +34,7 @@ export function ClassroomsPage() {
         description="Organize classes and prepare shared story access. Student accounts are not required."
       />
 
-      <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
+      <div className={dashboardPageStackClass}>
         <ClassroomCreatePlaceholder />
 
         <SectionCard

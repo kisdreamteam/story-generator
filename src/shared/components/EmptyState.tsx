@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { dashedPanelShellClass } from '@/shared/styles/surfaceClasses'
 import { AppButton } from './AppButton'
 import { AppCard } from './AppCard'
 
@@ -109,7 +110,7 @@ export function EmptyState({
     return (
       <AppCard
         padding="lg"
-        className={`border-dashed border-stone-300 bg-stone-50/50 text-center ${className}`.trim()}
+        className={`border-dashed bg-stone-50/50 text-center ${className}`.trim()}
       >
         <EmptyStateContent
           title={title}
@@ -127,7 +128,7 @@ export function EmptyState({
 
   return (
     <div
-      className={`rounded-xl border border-dashed border-stone-300 bg-white px-6 py-12 text-center ${className}`.trim()}
+      className={`${dashedPanelShellClass} bg-white px-6 py-12 text-center ${className}`.trim()}
     >
       <EmptyStateContent
         title={title}

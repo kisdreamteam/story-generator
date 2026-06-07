@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppEmptyState, PageHeader } from '@/shared/components'
+import { dashboardNarrowEmptyShellClass, dashboardPageShellClass } from '@/shared/styles/pageShellClasses'
 import { StoryDetailLoadGuard } from '@/features/stories/components/StoryDetailLoadGuard'
 import { useStoryReaderRoute } from '@/features/story-reader/hooks'
 import { RoleplayReader, RoleplayScriptDocument, RoleplayScriptPrintActions } from '../components'
@@ -32,7 +33,7 @@ export function StoryRoleplayPage() {
             }
           />
 
-          <div className="mx-auto max-w-4xl px-1 sm:px-0">
+          <div className={`${dashboardPageShellClass} max-w-4xl`}>
             <RoleplayReader script={script} />
 
             <div id="roleplay-print-area" className="sr-only print:not-sr-only print:mt-0">
@@ -41,7 +42,7 @@ export function StoryRoleplayPage() {
           </div>
         </>
       ) : hasDraft ? (
-        <div className="mx-auto max-w-lg px-4 py-16">
+        <div className={dashboardNarrowEmptyShellClass}>
           <AppEmptyState
             kind="story-not-generated"
             title="Generate the story first"

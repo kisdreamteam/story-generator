@@ -1,10 +1,15 @@
+import {
+  ImageGenerationBackendError,
+  isImageGenerationBackendError,
+  requestImageGenerationFromBackend,
+  toImageGenerationBackendErrorFromResponse,
+} from '../api/imageGenerationBackend.client'
 import type {
   ImageGenerationAdapter,
   ImageGenerationAdapterOptions,
   ImageGenerationAdapterRequest,
   ImageGenerationAdapterResult,
 } from './imageGenerationAdapter.types'
-import { IMAGE_GENERATION_ADAPTER_NOT_CONNECTED_MESSAGE } from './imageGenerationAdapter.types'
 
 function validateRequest(
   request: ImageGenerationAdapterRequest,
@@ -25,11 +30,8 @@ function validateRequest(
 }
 
 /**
- * Placeholder for the future production illustration backend.
- * Validates prompts but does not call any external provider yet.
- *
- * When wired, use a backend client (never browser provider secrets) similar to
- * {@link requestStoryGenerationFromBackend} in story generation.
+ * Real illustration adapter — single page via POST /api/image-generation.
+ * Provider failures throw {@link ImageGenerationBackendError} for service-layer fallback.
  */
 export const realImageGenerationAdapter: ImageGenerationAdapter = {
   kind: 'real',
@@ -37,7 +39,7 @@ export const realImageGenerationAdapter: ImageGenerationAdapter = {
 
   async generateImage(
     request: ImageGenerationAdapterRequest,
-    _options?: ImageGenerationAdapterOptions,
+    options?: ImageGenerationAdapterOptions,
   ): Promise<ImageGenerationAdapterResult> {
     const validationError = validateRequest(request)
 
@@ -45,10 +47,32 @@ export const realImageGenerationAdapter: ImageGenerationAdapter = {
       return validationError
     }
 
-    return {
-      ok: false,
-      code: 'PROVIDER',
-      errorMessage: IMAGE_GENERATION_ADAPTER_NOT_CONNECTED_MESSAGE,
+    try {
+      const backendResponse = await requestImageGenerationFromBackend(request, {
+        signal: options?.signal,
+      })
+
+      if (!backendResponse.ok || !backendResponse.imageUrl?.trim()) {
+        throw toImageGenerationBackendErrorFromResponse(backendResponse)
+      }
+
+      return {
+        ok: true,
+        imageUrl: backendResponse.imageUrl,
+        generatedAt: backendResponse.generatedAt ?? new Date().toISOString(),
+      }
+    } catch (error) {
+      if (isImageGenerationBackendError(error)) {
+        throw error
+      }
+
+      throw new ImageGenerationBackendError(
+        'UNKNOWN',
+        error instanceof Error ? error.message : 'Image generation request failed.',
+        { cause: error },
+      )
     }
   },
 }
+
+export { ImageGenerationBackendError, isImageGenerationBackendError } from '../api/imageGenerationBackend.client'

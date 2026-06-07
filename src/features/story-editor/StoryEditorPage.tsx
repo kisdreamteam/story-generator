@@ -231,14 +231,14 @@ export function StoryEditorPage() {
       status={status}
       presentation={presentation}
       isAuthLoading={isAuthLoading}
-      pageTitle="Edit story"
-      pageDescription="Edit pages, vocabulary, and illustration notes."
+      pageTitle="Advanced editor"
+      pageDescription="Advanced editor — page structure, preview, and version history."
     >
       {draft && (
         <>
           <PageHeader
-            title={`Edit: ${draft.title}`}
-            description="Edit your generated story, then save when you are ready. Cancel restores the last saved version."
+            title={`Advanced editor: ${draft.title}`}
+            description="Add or reorder pages, preview your story, and restore prior versions from history."
           />
 
           {validationErrors && !validationErrors.isValid && (

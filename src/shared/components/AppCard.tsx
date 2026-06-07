@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react'
+import { panelShellClass } from '@/shared/styles/surfaceClasses'
 
 interface AppCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
@@ -22,7 +23,7 @@ export function AppCard({
   return (
     <div
       className={[
-        'rounded-xl border border-stone-200 bg-white shadow-sm',
+        `${panelShellClass} shadow-sm`,
         paddingClasses[padding],
         hoverable ? 'transition-shadow hover:shadow-md' : '',
         className,

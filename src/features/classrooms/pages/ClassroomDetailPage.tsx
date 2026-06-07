@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, SectionCard } from '@/shared/components'
+import { dashboardPageStackClass } from '@/shared/styles/pageShellClasses'
 import { storyFeedback } from '@/shared/feedback'
 import {
   ClassroomDetailLoadGuard,
@@ -50,7 +51,7 @@ export function ClassroomDetailPage() {
             actions={<ClassroomDetailNav onBack={handleBack} />}
           />
 
-          <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
+          <div className={dashboardPageStackClass}>
             <SectionCard title="Overview">
               <dl className="grid gap-4 sm:grid-cols-2">
                 <div>

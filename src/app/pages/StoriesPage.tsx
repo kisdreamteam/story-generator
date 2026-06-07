@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { dashboardPageStackClass } from '@/shared/styles/pageShellClasses'
 import { useNavigate } from 'react-router-dom'
 import { AppButton, AppEmptyState, AppErrorState, AppLoadingState, PageHeader, SectionCard } from '@/shared/components'
 import { DashboardLibraryEmptyState } from '@/app/components/DashboardLibraryEmptyState'
@@ -26,6 +27,7 @@ import {
   useStoryLibraryFilters,
   type StoryProject,
 } from '@/features/stories'
+import { isStoryArchived } from '@/features/stories/utils/storyLifecycleStatus'
 
 const STORY_PREVIEW_ID = 'story-preview'
 
@@ -84,21 +86,37 @@ export function StoriesPage() {
   const [actionError, setActionError] = useState<StoryLoadErrorPresentation | null>(null)
   const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null)
   const [duplicatingStoryId, setDuplicatingStoryId] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
   const deleteInFlightRef = useRef(false)
   const duplicateInFlightRef = useRef(false)
 
   const { filters, debouncedFilters, sort, setFilter, setSort, clearFilters, hasActiveFilters, hasActiveQuery } =
     useStoryLibraryFilters()
 
-  const { filteredStories, totalCount, filteredCount } = useFilteredStoryProjects(
+  const { filteredStories, totalCount } = useFilteredStoryProjects(
     userStories,
     debouncedFilters,
     sort,
   )
 
+  const archivedCount = useMemo(
+    () => userStories.filter(isStoryArchived).length,
+    [userStories],
+  )
+
+  const libraryStories = useMemo(() => {
+    if (showArchived) {
+      return filteredStories.filter(isStoryArchived)
+    }
+
+    return filteredStories.filter((project) => !isStoryArchived(project))
+  }, [filteredStories, showArchived])
+
+  const visibleCount = libraryStories.length
+
   const { finishedStories, storyPlans } = useMemo(
-    () => partitionLibraryStories(filteredStories),
-    [filteredStories],
+    () => partitionLibraryStories(libraryStories),
+    [libraryStories],
   )
 
   const refreshRecentStories = useCallback(async () => {
@@ -200,14 +218,16 @@ export function StoriesPage() {
 
   const isPageLoading = isLoading || isAuthLoading
   const hasUserStories = userStories.length > 0
-  const hasVisibleStories = filteredStories.length > 0
+  const hasVisibleStories = visibleCount > 0
   const sortDescription = getStoryLibrarySortDescription(sort)
   const listDescription = isPageLoading
     ? 'Loading your stories…'
     : hasUserStories
       ? hasActiveQuery
-        ? `${filteredCount} of ${storyCountLabel(totalCount)} match — sorted ${sortDescription}.`
-        : `${storyCountLabel(totalCount)} — sorted ${sortDescription}. Open a story to read or edit it.`
+        ? `${visibleCount} of ${storyCountLabel(totalCount)} match — sorted ${sortDescription}.`
+        : showArchived
+          ? `${storyCountLabel(visibleCount)} archived — sorted ${sortDescription}.`
+          : `${storyCountLabel(visibleCount)} — sorted ${sortDescription}. Open a story to read or edit it.`
       : 'Your story plans and finished stories will show up here.'
 
   return (
@@ -217,7 +237,7 @@ export function StoriesPage() {
         description="Story plans and finished Nina & Nino stories for your class — all in one place."
       />
 
-      <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
+      <div className={dashboardPageStackClass}>
         <SectionCard
           title="Story library"
           description={listDescription}
@@ -257,7 +277,7 @@ export function StoriesPage() {
               <StoryFiltersPanel
                 filters={filters}
                 sort={sort}
-                filteredCount={filteredCount}
+                filteredCount={visibleCount}
                 totalCount={totalCount}
                 hasActiveFilters={hasActiveFilters}
                 onFilterChange={setFilter}
@@ -265,66 +285,99 @@ export function StoriesPage() {
                 onClearFilters={clearFilters}
               />
 
+              {archivedCount > 0 ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-stone-500">
+                    {showArchived
+                      ? `Showing ${archivedCount} archived ${archivedCount === 1 ? 'story' : 'stories'}.`
+                      : `${archivedCount} archived ${archivedCount === 1 ? 'story' : 'stories'} hidden from this list.`}
+                  </p>
+                  <AppButton
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowArchived((current) => !current)}
+                    className="self-start sm:self-auto"
+                  >
+                    {showArchived ? 'Hide archived' : 'Show archived'}
+                  </AppButton>
+                </div>
+              ) : null}
+
               {!hasVisibleStories ? (
-                <AppEmptyState kind="story-library-no-results" layout="section" />
+                <div className="space-y-3">
+                  <AppEmptyState kind="story-library-no-results" layout="section" className="text-left" />
+                  {hasActiveQuery ? (
+                    <AppButton
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      fullWidth
+                      className="sm:w-auto"
+                    >
+                      Clear filters
+                    </AppButton>
+                  ) : null}
+                </div>
               ) : null}
 
               {hasVisibleStories ? (
                 <>
-              <section aria-labelledby="finished-stories-heading">
-                <div className="mb-3 space-y-1">
-                  <h3 id="finished-stories-heading" className="text-sm font-semibold text-stone-900">
-                    Finished stories
-                  </h3>
-                  <p className="text-xs leading-relaxed text-stone-500">
-                    Generated stories ready to read, edit, or print for class.
-                  </p>
-                </div>
-                {finishedStories.length === 0 ? (
-                  <DashboardLibraryEmptyState
-                    kind="no-finished-stories"
-                    layout="section"
-                    hasStoryPlans={storyPlans.length > 0}
-                    onCreateStory={handleCreateStory}
-                  />
-                ) : (
-                  <LibraryStoryList
-                    stories={finishedStories}
-                    deletingStoryId={deletingStoryId}
-                    duplicatingStoryId={duplicatingStoryId}
-                    onOpenProject={handleOpenProject}
-                    onDuplicateProject={handleDuplicateStory}
-                    onDeleteProject={handleDeleteStory}
-                  />
-                )}
-              </section>
+                  <section aria-labelledby="finished-stories-heading">
+                    <div className="mb-3 space-y-1">
+                      <h3 id="finished-stories-heading" className="text-sm font-semibold text-stone-900">
+                        Finished stories
+                      </h3>
+                      <p className="text-xs leading-relaxed text-stone-500">
+                        Generated stories ready to read, edit, or print for class.
+                      </p>
+                    </div>
+                    {finishedStories.length === 0 ? (
+                      <DashboardLibraryEmptyState
+                        kind="no-finished-stories"
+                        layout="section"
+                        hasStoryPlans={storyPlans.length > 0}
+                        onCreateStory={handleCreateStory}
+                      />
+                    ) : (
+                      <LibraryStoryList
+                        stories={finishedStories}
+                        deletingStoryId={deletingStoryId}
+                        duplicatingStoryId={duplicatingStoryId}
+                        onOpenProject={handleOpenProject}
+                        onDuplicateProject={handleDuplicateStory}
+                        onDeleteProject={handleDeleteStory}
+                      />
+                    )}
+                  </section>
 
-              <section aria-labelledby="story-plans-heading">
-                <div className="mb-3 space-y-1">
-                  <h3 id="story-plans-heading" className="text-sm font-semibold text-stone-900">
-                    Story plans
-                  </h3>
-                  <p className="text-xs leading-relaxed text-stone-500">
-                    Saved lesson setups — open one to edit or generate your story.
-                  </p>
-                </div>
-                {storyPlans.length === 0 ? (
-                  <DashboardLibraryEmptyState
-                    kind="no-story-plans"
-                    layout="section"
-                    onCreateStory={handleCreateStory}
-                  />
-                ) : (
-                  <LibraryStoryList
-                    stories={storyPlans}
-                    deletingStoryId={deletingStoryId}
-                    duplicatingStoryId={duplicatingStoryId}
-                    onOpenProject={handleOpenProject}
-                    onDuplicateProject={handleDuplicateStory}
-                    onDeleteProject={handleDeleteStory}
-                  />
-                )}
-              </section>
+                  <section aria-labelledby="story-plans-heading" className="border-t border-stone-100 pt-8">
+                    <div className="mb-3 space-y-1">
+                      <h3 id="story-plans-heading" className="text-sm font-semibold text-stone-900">
+                        Story plans
+                      </h3>
+                      <p className="text-xs leading-relaxed text-stone-500">
+                        Saved lesson setups — open one to edit or generate your story.
+                      </p>
+                    </div>
+                    {storyPlans.length === 0 ? (
+                      <DashboardLibraryEmptyState
+                        kind="no-story-plans"
+                        layout="section"
+                        onCreateStory={handleCreateStory}
+                      />
+                    ) : (
+                      <LibraryStoryList
+                        stories={storyPlans}
+                        deletingStoryId={deletingStoryId}
+                        duplicatingStoryId={duplicatingStoryId}
+                        onOpenProject={handleOpenProject}
+                        onDuplicateProject={handleDuplicateStory}
+                        onDeleteProject={handleDeleteStory}
+                      />
+                    )}
+                  </section>
                 </>
               ) : null}
             </div>

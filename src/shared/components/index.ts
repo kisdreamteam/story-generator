@@ -1,4 +1,6 @@
 export { AppButton } from './AppButton'
+export { AppBadge } from './AppBadge'
+export type { AppBadgeTone } from './AppBadge'
 export { AppCard } from './AppCard'
 export { AppInput } from './AppInput'
 export { AppTextarea } from './AppTextarea'

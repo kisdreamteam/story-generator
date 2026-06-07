@@ -24,29 +24,29 @@ export const mockAIProvider: AIProvider = {
   },
 
   async generateStory(
-    _input: AIGenerationInput,
+    input: AIGenerationInput,
     options?: AIProviderOptions,
   ): Promise<AIStoryOutput> {
     await delay(MOCK_AI_GENERATION_MS, options?.signal)
     throwIfAborted(options?.signal)
-    return buildMockAIStoryGenerationResult().story
+    return buildMockAIStoryGenerationResult(input.setup.pageCount).story
   },
 
   async generateFlashcards(
-    _input: AIGenerationInput,
+    input: AIGenerationInput,
     _story: AIStoryOutput,
     options?: AIProviderOptions,
   ): Promise<AIFlashcardOutput[]> {
     throwIfAborted(options?.signal)
-    return buildMockAIStoryGenerationResult().flashcards
+    return buildMockAIStoryGenerationResult(input.setup.pageCount).flashcards
   },
 
   async generateImagePrompts(
-    _input: AIGenerationInput,
+    input: AIGenerationInput,
     _story: AIStoryOutput,
     options?: AIProviderOptions,
   ): Promise<AIImagePromptOutput[]> {
     throwIfAborted(options?.signal)
-    return getMockAIImagePrompts()
+    return getMockAIImagePrompts(input.setup.pageCount)
   },
 }

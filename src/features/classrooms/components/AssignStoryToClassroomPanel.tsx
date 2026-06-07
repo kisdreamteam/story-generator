@@ -43,7 +43,7 @@ export function AssignStoryToClassroomPanel({
           kind="classroom-library-empty"
           layout="section"
           title="No classrooms yet"
-          description="Create a classroom first, then return here to assign this story."
+          description="Classroom setup is coming soon. When classrooms are available, return here to assign this story."
           actionLabel="Go to classrooms"
           onAction={() => navigate('/dashboard/classrooms')}
         />

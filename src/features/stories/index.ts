@@ -23,9 +23,13 @@ export {
   mapStorySetupFormToInput,
   mapStorySetupInputToFormValues,
   getStorySetupFormDefaults,
+  hasStorySetupFormErrors,
   saveStoryDraft,
   storySetupFormDefaults,
   storyPageCountOptions,
+  validateFastStorySetupForm,
+  STORY_SETUP_OPTIONAL_FIELD_KEYS,
+  STORY_SETUP_REQUIRED_FIELD_KEYS,
   withRecalculatedWordCounts,
   areStorySetupFormValuesEqual,
   areStorySetupInputsEqual,
@@ -37,7 +41,12 @@ export {
   StorySaveValidationFailure,
   validateStoryForSave,
 } from './utils'
-export type { StorySetupFormValues, StorySetupReviewField, StorySetupReviewSection } from './utils'
+export type {
+  StorySetupFormErrors,
+  StorySetupFormValues,
+  StorySetupReviewField,
+  StorySetupReviewSection,
+} from './utils'
 export type {
   StorySaveValidationError,
   StorySaveValidationResult,

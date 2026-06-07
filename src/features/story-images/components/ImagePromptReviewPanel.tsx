@@ -76,7 +76,7 @@ export function ImagePromptReviewPanel({
     return (
       <SectionCard
         title="Illustration prompts"
-        description="Review and edit image prompts before illustrations are generated."
+        description="Review prompts before generating illustrations. Edit scene descriptions and continuity reminders for each page."
       >
         <p className="text-sm text-stone-600">This story has no pages yet.</p>
       </SectionCard>

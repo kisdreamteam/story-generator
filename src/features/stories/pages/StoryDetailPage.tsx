@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppButton, ErrorState, PageHeader } from '@/shared/components'
+import { dashboardPageStackClass } from '@/shared/styles/pageShellClasses'
+import { panelShellClass } from '@/shared/styles/surfaceClasses'
 import {
   classifyStoryDeleteError,
   classifyStoryLoadError,
@@ -30,10 +32,11 @@ import {
   useAssignStoryToClassroom,
 } from '@/features/classrooms'
 import { StoryExportActions } from '@/features/story-export'
-import { deleteStory, duplicateStory, markStoryCompleted } from '../api/storyStorageApi'
+import { deleteStory, duplicateStory, archiveStory, unarchiveStory, markStoryCompleted } from '../api/storyStorageApi'
 import { AppEmptyState } from '@/shared/components'
-import { resolveStoryLifecycleStatus } from '../utils/storyLifecycleStatus'
+import { isStoryArchived, resolveStoryLifecycleStatus } from '../utils/storyLifecycleStatus'
 import { confirmDeleteStory } from '../lib/confirmDeleteStory'
+import { confirmArchiveStory, confirmUnarchiveStory } from '../lib/confirmArchiveStory'
 import { StoryActionsBar, type StoryActionConfig } from '../components/StoryActionsBar'
 import {
   StoryDetailModeBanner,
@@ -48,6 +51,7 @@ import { StoryDetailLoadGuard } from '../components/StoryDetailLoadGuard'
 import { useStoryDetail } from '../hooks/useStoryDetail'
 import { useStoryEditor, useStoryDirtyState } from '@/features/story-editor'
 import { formatStoryDate } from '../utils/storyFormat'
+import { formatStoryVersionBadge } from '../utils/storyVersionFormat'
 import { getStoryProjectStatusLabel } from '@/features/story-generator'
 import {
   buildStoryDetailFallbackFields,
@@ -109,6 +113,11 @@ export function StoryDetailPage() {
   function handleContinueInCreator() {
     if (!draft) return
     navigate(`/dashboard/create?draftId=${encodeURIComponent(draft.id)}`)
+  }
+
+  function handleOpenAdvancedEditor() {
+    if (!storyId) return
+    navigate(`/dashboard/stories/${encodeURIComponent(storyId)}/edit`)
   }
 
   function handleReadStory() {
@@ -331,6 +340,10 @@ export function StoryDetailPage() {
       storyFeedback.imagesGenerated(result.generated.length)
     }
 
+    if (result.mockFallbackPages.length > 0) {
+      storyFeedback.imageGenerationSucceededWithFallback()
+    }
+
     if (result.failed.length > 0) {
       storyFeedback.imageGenerationFailed(
         result.failed
@@ -344,7 +357,11 @@ export function StoryDetailPage() {
     const result = await pageImageGeneration.regeneratePageImage(pageNumber)
 
     if (result.ok) {
-      storyFeedback.imagesGenerated(1)
+      if (result.usedMockFallback) {
+        storyFeedback.imageGenerationSucceededWithFallback()
+      } else {
+        storyFeedback.imagesGenerated(1)
+      }
       return
     }
 
@@ -422,6 +439,37 @@ export function StoryDetailPage() {
     })
   }
 
+  function handleToggleArchive() {
+    if (!draft || isMutating) return
+
+    const isArchived = isStoryArchived(draft)
+    if (isArchived) {
+      if (!confirmUnarchiveStory(draft.title)) return
+    } else if (!confirmArchiveStory(draft.title)) {
+      return
+    }
+
+    void mutation.run(() => (isArchived ? unarchiveStory(draft.id) : archiveStory(draft.id)), {
+      optimistic: () => {
+        setActionError(null)
+      },
+      onSuccess: () => {
+        if (isArchived) {
+          storyFeedback.storyUnarchived(draft.title)
+        } else {
+          storyFeedback.storyArchived(draft.title)
+          navigate('/dashboard/stories')
+        }
+        reload()
+      },
+      onError: (error) => {
+        const presentation = classifyStoryLoadError(error)
+        setActionError(presentation)
+        storyFeedback.cloudSyncFailed(presentation.description)
+      },
+    })
+  }
+
   function handleToggleAssignPanel() {
     setIsAssignPanelOpen((current) => {
       const next = !current
@@ -440,8 +488,10 @@ export function StoryDetailPage() {
 
   const lifecycleStatus = draft ? resolveStoryLifecycleStatus(draft) : null
   const statusLabel = draft ? getStoryProjectStatusLabel(draft) : ''
+  const isArchived = draft ? isStoryArchived(draft) : false
+  const headerStatusLabel = isArchived ? 'Archived' : statusLabel
   const canMarkComplete =
-    isGenerated && lifecycleStatus !== 'completed' && lifecycleStatus !== 'draft' && !isEditing
+    isGenerated && lifecycleStatus !== 'completed' && lifecycleStatus !== 'draft' && !isEditing && !isArchived
 
   const generatedActions: StoryActionConfig[] = [
     {
@@ -459,8 +509,16 @@ export function StoryDetailPage() {
       disabled: isMutating,
     },
     {
-      key: 'assignClassroom',
+      key: 'archive',
       hidden: isEditing,
+      label: isArchived ? 'Unarchive story' : undefined,
+      onClick: handleToggleArchive,
+      loading: isMutating,
+      disabled: isMutating,
+    },
+    {
+      key: 'assignClassroom',
+      hidden: isEditing || isArchived,
       onClick: handleToggleAssignPanel,
     },
     {
@@ -476,8 +534,13 @@ export function StoryDetailPage() {
     },
     {
       key: 'edit',
-      hidden: isEditing,
+      hidden: isEditing || isArchived,
       onClick: handleEnterEditMode,
+    },
+    {
+      key: 'advancedEditor',
+      hidden: isEditing || isArchived,
+      onClick: handleOpenAdvancedEditor,
     },
     {
       key: 'cancel',
@@ -505,6 +568,13 @@ export function StoryDetailPage() {
     {
       key: 'assignClassroom',
       onClick: handleToggleAssignPanel,
+    },
+    {
+      key: 'archive',
+      label: isArchived ? 'Unarchive story' : undefined,
+      onClick: handleToggleArchive,
+      loading: isMutating,
+      disabled: isMutating,
     },
     {
       key: 'duplicate',
@@ -550,7 +620,9 @@ export function StoryDetailPage() {
   const pageDescription = isGenerated
     ? isEditing
       ? 'Update story pages, flashcards, or illustration notes, then save your changes.'
-      : 'Your saved classroom story — read it aloud or edit pages anytime.'
+      : isArchived
+        ? 'This story is archived — unarchive it to assign, edit, or read aloud again.'
+        : 'Review your story — Quick edit for small changes, Advanced editor for structure and version history.'
     : 'This is your saved story plan. Open the story creator to generate pages for your class.'
 
   return (
@@ -569,15 +641,16 @@ export function StoryDetailPage() {
                 onBack={handleBackToStories}
                 onViewStory={isGenerated && isEditing ? handleViewStory : undefined}
                 onContinueEditing={handleContinueEditing}
-                onReadStory={isGenerated && !isEditing ? handleReadStory : undefined}
-                onRoleplay={isGenerated && !isEditing ? handleOpenRoleplay : undefined}
+                onOpenAdvancedEditor={isGenerated && !isEditing && !isArchived ? handleOpenAdvancedEditor : undefined}
+                onReadStory={isGenerated && !isEditing && !isArchived ? handleReadStory : undefined}
+                onRoleplay={isGenerated && !isEditing && !isArchived ? handleOpenRoleplay : undefined}
                 isSetupOnly={!isGenerated}
                 continueEditingActive={isEditing}
               />
             }
           />
 
-          <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
+          <div className={dashboardPageStackClass}>
             {isGenerated && (
               <div className="space-y-4">
                 <StoryDetailModeBanner isEditing={isEditing} isDirty={hasChanges} />
@@ -604,7 +677,7 @@ export function StoryDetailPage() {
 
             <StoryHeader
               title={draft.title}
-              statusLabel={statusLabel}
+              statusLabel={headerStatusLabel}
               summary={isGenerated && displayStory ? displayStory.summary : undefined}
               pageCount={
                 isGenerated && displayStory
@@ -612,7 +685,9 @@ export function StoryDetailPage() {
                   : draft.pageCount
               }
               totalWordCount={isGenerated && displayStory ? displayStory.totalWordCount : 0}
-              hideReadOnlyBadge={!isGenerated || isEditing}
+              versionBadge={isGenerated ? formatStoryVersionBadge(draft.version) : null}
+              updatedAtLabel={formatStoryDate(draft.updatedAt)}
+              hideReadOnlyBadge={!isGenerated || isEditing || isArchived}
             />
 
             <StoryMetadata
@@ -653,7 +728,7 @@ export function StoryDetailPage() {
             ) : null}
 
             {isGenerated && isEditing && editedStory ? (
-              <div className="rounded-xl border-2 border-amber-200 bg-white p-2 sm:p-4">
+              <div className={`${panelShellClass} border-2 border-amber-200 p-2 shadow-sm sm:p-4`}>
                 <StoryEditForm
                   story={editedStory}
                   onPageTextChange={updatePageText}
@@ -664,6 +739,18 @@ export function StoryDetailPage() {
             ) : isGenerated && viewStory ? (
               <div id="story-detail-content">
                 <StoryGeneratedContentSections>
+                  <ImagePromptReviewPanel
+                    pages={viewStory.storyPages}
+                    prompts={imagePromptReview.prompts}
+                    originalPrompts={imagePromptReview.baseline}
+                    onPromptChange={imagePromptReview.updatePrompt}
+                    onResetPage={imagePromptReview.resetPage}
+                    onResetAll={imagePromptReview.resetAll}
+                    isPageModified={imagePromptReview.isPageModified}
+                    isDirty={imagePromptReview.isDirty}
+                    onSave={handleSaveImagePrompts}
+                    isSaving={isMutating}
+                  />
                   <StoryImageGenerationPanel
                     missingCount={pageImageGeneration.missingCount}
                     isGenerating={pageImageGeneration.isGenerating}
@@ -690,18 +777,6 @@ export function StoryDetailPage() {
                     story={viewStory}
                     projectTitle={draft.title}
                     storyId={draft.id}
-                  />
-                  <ImagePromptReviewPanel
-                    pages={viewStory.storyPages}
-                    prompts={imagePromptReview.prompts}
-                    originalPrompts={imagePromptReview.baseline}
-                    onPromptChange={imagePromptReview.updatePrompt}
-                    onResetPage={imagePromptReview.resetPage}
-                    onResetAll={imagePromptReview.resetAll}
-                    isPageModified={imagePromptReview.isPageModified}
-                    isDirty={imagePromptReview.isDirty}
-                    onSave={handleSaveImagePrompts}
-                    isSaving={isMutating}
                   />
                 </StoryGeneratedContentSections>
               </div>

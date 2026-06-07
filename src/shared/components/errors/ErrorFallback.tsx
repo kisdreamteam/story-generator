@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom'
 import { AppButton } from '@/shared/components/AppButton'
 import { ErrorState } from '@/shared/components/ErrorState'
+import {
+  appButtonLayoutClass,
+  appButtonSecondaryClass,
+  appButtonSizeMdClass,
+} from '@/shared/styles/buttonClasses'
 
 export interface ErrorFallbackProps {
   title: string
@@ -28,7 +33,8 @@ export function ErrorFallback({
       {backTo ? (
         <Link
           to={backTo}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 focus-visible:ring-offset-2 sm:w-auto"
+          className={[appButtonLayoutClass, appButtonSecondaryClass, appButtonSizeMdClass, 'w-full sm:w-auto']
+            .join(' ')}
         >
           {backLabel}
         </Link>

@@ -14,7 +14,7 @@ export type StoryTeacherStatus = 'setup-draft' | 'generated-story' | 'saved-stor
 export const STORY_STATUS_LABELS: Record<StoryTeacherStatus, string> = {
   'setup-draft': 'Draft',
   'generated-story': 'Generated',
-  'saved-story': 'Edited',
+  'saved-story': 'Saved',
 }
 
 /** Review step badge when the plan was saved to Your stories. */
@@ -74,7 +74,7 @@ export function getCreateFlowStoryStatusLabel(options: {
 
   if (status === 'setup-draft') return 'Draft'
   if (status === 'generated-story') return 'Generated'
-  return 'Edited'
+  return 'Saved'
 }
 
 /** Map create-flow teacher status to lifecycle status. */

@@ -1,5 +1,6 @@
 import { memo } from 'react'
-import { AppButton, AppCard } from '@/shared/components'
+import { AppBadge, AppButton, AppCard } from '@/shared/components'
+import { insetBannerClass } from '@/shared/styles/surfaceClasses'
 import {
   StoryImage,
   StoryPageImageStatusBadge,
@@ -31,12 +32,10 @@ export const StoryPageReadCard = memo(function StoryPageReadCard({
   const canRegenerate = showImageActions && Boolean(onRegenerate)
 
   return (
-    <AppCard padding="md" className="border-stone-200 bg-white">
+    <AppCard padding="md" hoverable>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">
-            Page {page.pageNumber}
-          </span>
+          <AppBadge tone="brandStrong">Page {page.pageNumber}</AppBadge>
           {showImageActions ? (
             <StoryPageImageStatusBadge
               pageNumber={page.pageNumber}
@@ -66,8 +65,10 @@ export const StoryPageReadCard = memo(function StoryPageReadCard({
         alt={`Illustration for page ${page.pageNumber}`}
         className="mb-4"
       />
-      <p className="whitespace-pre-line text-base leading-[1.75] text-stone-900">{page.text}</p>
-      <div className="mt-4 rounded-lg border border-stone-100 bg-stone-50/80 px-3 py-2.5">
+      <p className="whitespace-pre-line text-base leading-relaxed text-stone-900 sm:leading-[1.75]">
+        {page.text}
+      </p>
+      <div className={`mt-4 px-3 py-2.5 ${insetBannerClass}`}>
         <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Teaching focus</p>
         <p className="mt-1 text-sm leading-relaxed text-stone-700">
           {displayDetailValue(page.teachingFocus, 'No teaching focus noted for this page.')}

@@ -6,6 +6,10 @@ import {
 } from '../types/storyLifecycle.types'
 import { hasGeneratedStoryContent } from '@/features/story-generator/lib/story-project'
 
+export function isStoryArchived(project: StoryProject): boolean {
+  return Boolean(project.archivedAt)
+}
+
 export function isStoryLifecycleStatus(value: unknown): value is StoryLifecycleStatus {
   return typeof value === 'string' && STORY_LIFECYCLE_STATUSES.includes(value as StoryLifecycleStatus)
 }
@@ -76,6 +80,10 @@ export function withStoryLifecycleStatus(
 export function toSupabaseProjectStatus(
   project: StoryProject,
 ): 'draft' | 'generated' | 'saved' | 'archived' {
+  if (isStoryArchived(project)) {
+    return 'archived'
+  }
+
   switch (resolveStoryLifecycleStatus(project)) {
     case 'draft':
       return 'draft'

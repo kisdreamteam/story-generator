@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { AppButton, ErrorState, SaveStatusIndicator } from '@/shared/components'
+import { dashboardPageStackClass } from '@/shared/styles/pageShellClasses'
 import type { SaveStatus } from '@/shared/lib/autosave/saveStatus'
 import {
   useGenerationFailureState,
@@ -91,7 +92,7 @@ export function CreateStoryGeneratedStep({
   const showPartialPreview = Boolean(generatedStory) && failureState.hasPartialContent
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-1 sm:px-0">
+    <div className={dashboardPageStackClass}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -108,16 +109,18 @@ export function CreateStoryGeneratedStep({
                   : storySaved
                     ? 'Open it from Your stories anytime.'
                     : 'Read through everything below, then save to Your stories.'
-                : 'Your story plan is still here. Go back to review if you want to change anything before generating.'}
+                : 'Your story plan is still here. Edit your plan on the create form if you want to change anything before generating.'}
           </p>
         </div>
         {showStartOverInHeader && (
           <AppButton
             type="button"
             variant="ghost"
+            size="sm"
             onClick={onStartOver}
             disabled={isBusy}
-            className="self-start"
+            fullWidth
+            className="self-start sm:w-auto"
           >
             Start over
           </AppButton>
@@ -148,6 +151,15 @@ export function CreateStoryGeneratedStep({
           description={saveError}
         />
       )}
+
+      {storySaved && generatedStory && !isGenerating ? (
+        <ErrorState
+          variant="inline"
+          tone="info"
+          title="This story is saved in Your stories"
+          description="Open it from your library for Quick edit on the detail page, or use Advanced editor for page structure and version history."
+        />
+      ) : null}
 
       {isGenerating ? (
         <StoryGenerationLoading />
@@ -188,7 +200,7 @@ export function CreateStoryGeneratedStep({
           description={
             generationStatus === 'error'
               ? 'Your story plan is still here. Edit your plan and try again, or save your plan and return later.'
-              : 'Generate your story from the review step to see pages here.'
+              : 'Generate your story from the create form to see pages here.'
           }
           hints={
             generationStatus === 'error'

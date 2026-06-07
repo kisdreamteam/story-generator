@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppButton, AppEmptyState, AppErrorState, AppLoadingState, PageHeader } from '@/shared/components'
+import { dashboardPageShellClass } from '@/shared/styles/pageShellClasses'
 import type { ClassroomLoadErrorPresentation, ClassroomLoadStatus } from '../types'
 
 interface ClassroomDetailLoadGuardProps {
@@ -28,7 +29,7 @@ export function ClassroomDetailLoadGuard({
     return (
       <>
         <PageHeader title={pageTitle} description={pageDescription} />
-        <div className="mx-auto max-w-2xl">
+        <div className={dashboardPageShellClass}>
           <AppLoadingState kind="classroom-detail" />
         </div>
       </>
@@ -48,7 +49,7 @@ export function ClassroomDetailLoadGuard({
     <>
       <PageHeader title={pageTitle} description={pageDescription} />
 
-      <div className="mx-auto max-w-2xl">
+      <div className={dashboardPageShellClass}>
         {status === 'error' ? (
           <AppErrorState presentation={copy}>
             <AppButton type="button" onClick={goToClassrooms}>

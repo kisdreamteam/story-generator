@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { appButtonLayoutClass, appButtonSecondaryClass } from '@/shared/styles/buttonClasses'
 
 type AppButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type AppButtonSize = 'sm' | 'md' | 'lg'
@@ -13,8 +14,7 @@ interface AppButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variantClasses: Record<AppButtonVariant, string> = {
   primary:
     'bg-brand-500 text-white hover:bg-brand-600 focus-visible:ring-brand-400 disabled:bg-stone-300 disabled:text-stone-500',
-  secondary:
-    'bg-white text-stone-800 border border-stone-200 hover:bg-stone-50 focus-visible:ring-stone-300 disabled:bg-stone-100 disabled:text-stone-400',
+  secondary: appButtonSecondaryClass,
   ghost:
     'bg-transparent text-stone-700 hover:bg-stone-100 focus-visible:ring-stone-300 disabled:text-stone-400',
   danger:
@@ -38,9 +38,7 @@ export function AppButton({
   return (
     <button
       className={[
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-        'disabled:cursor-not-allowed',
+        appButtonLayoutClass,
         variantClasses[variant],
         sizeClasses[size],
         fullWidth ? 'w-full' : '',

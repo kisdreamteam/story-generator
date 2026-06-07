@@ -39,7 +39,14 @@ export function DashboardLibraryEmptyState({
         className={layout === 'section' ? 'text-left' : undefined}
       />
       {useSectionActions ? (
-        <AppButton type="button" variant="ghost" size="sm" onClick={onCreateStory}>
+        <AppButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCreateStory}
+          fullWidth
+          className="sm:w-auto"
+        >
           {kind === 'no-story-plans' ? 'Start a story plan' : 'Create a story plan'}
         </AppButton>
       ) : null}

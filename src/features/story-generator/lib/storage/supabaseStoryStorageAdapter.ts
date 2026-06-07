@@ -84,6 +84,7 @@ interface SetupDataJson {
   vocabularyWords?: string[]
   setting?: string
   characters?: string
+  archivedAt?: string | null
 }
 
 interface GeneratedMetadataJson {
@@ -165,6 +166,7 @@ function toSetupDataJson(project: StoryProject): SetupDataJson {
     vocabularyWords: project.vocabularyWords,
     setting: project.setting,
     characters: project.characters,
+    archivedAt: project.archivedAt ?? null,
   }
 }
 
@@ -320,6 +322,9 @@ function buildStoryProjectFromRows(
     updatedAt: row.updated_at,
     version: generatedMeta.contentVersion,
     lifecycleStatus: generatedMeta.lifecycleStatus,
+    archivedAt:
+      setupData.archivedAt ??
+      (row.status === 'archived' ? row.updated_at : undefined),
     setup: setupData.setup ?? undefined,
     planReview: setupData.planReview ?? undefined,
     generatedStory,

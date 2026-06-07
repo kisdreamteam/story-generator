@@ -16,15 +16,15 @@ function readRequestBody(req: IncomingMessage): Promise<string> {
   })
 }
 
-/** Dev-only POST /api/story-generation — forwards to the server placeholder handler. */
-function storyGenerationApiPlaceholderPlugin(): Plugin {
+/** Dev-only POST /api/* generation routes — forward to server handlers. */
+function createApiRoutePlugin(routePath: string, handlerModulePath: string, errorLabel: string): Plugin {
   return {
-    name: 'story-generation-api-placeholder',
+    name: `api-route-${routePath.replace(/\//g, '-')}`,
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url?.split('?')[0]
 
-        if (url !== '/api/story-generation') {
+        if (url !== routePath) {
           next()
           return
         }
@@ -39,10 +39,12 @@ function storyGenerationApiPlaceholderPlugin(): Plugin {
         try {
           const body = await readRequestBody(req)
           const parsed = body ? JSON.parse(body) : null
-          const { handleStoryGenerationRequest } = await import(
-            './server/api/story-generation/handleStoryGenerationRequest.ts'
-          )
-          const result = await handleStoryGenerationRequest(parsed)
+          const handlerModule = await import(handlerModulePath)
+          const handleRequest =
+            routePath === '/api/story-generation'
+              ? handlerModule.handleStoryGenerationRequest
+              : handlerModule.handleImageGenerationRequest
+          const result = await handleRequest(parsed)
 
           res.statusCode = result.ok ? 200 : 503
           res.setHeader('Content-Type', 'application/json')
@@ -52,7 +54,7 @@ function storyGenerationApiPlaceholderPlugin(): Plugin {
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({
             ok: false,
-            errorMessage: 'Story generation API request failed.',
+            errorMessage: `${errorLabel} request failed.`,
           }))
         }
       })
@@ -60,8 +62,31 @@ function storyGenerationApiPlaceholderPlugin(): Plugin {
   }
 }
 
+/** Dev-only POST /api/story-generation — forwards to the server handler. */
+function storyGenerationApiPlaceholderPlugin(): Plugin {
+  return createApiRoutePlugin(
+    '/api/story-generation',
+    './server/api/story-generation/handleStoryGenerationRequest.ts',
+    'Story generation API',
+  )
+}
+
+/** Dev-only POST /api/image-generation — forwards to the server handler. */
+function imageGenerationApiPlugin(): Plugin {
+  return createApiRoutePlugin(
+    '/api/image-generation',
+    './server/api/image-generation/handleImageGenerationRequest.ts',
+    'Image generation API',
+  )
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), storyGenerationApiPlaceholderPlugin()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    storyGenerationApiPlaceholderPlugin(),
+    imageGenerationApiPlugin(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

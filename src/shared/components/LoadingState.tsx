@@ -1,3 +1,4 @@
+import { panelShellClass } from '@/shared/styles/surfaceClasses'
 import { LoadingText } from './loading/LoadingText'
 import { skeletonBlockClass } from './loading/skeletonClasses'
 
@@ -20,7 +21,7 @@ export function LoadingState({
 
   return (
     <div
-      className={`rounded-xl border border-stone-200 bg-white text-center ${padding} ${className}`.trim()}
+      className={`${panelShellClass} text-center ${padding} ${className}`.trim()}
       role="status"
       aria-live="polite"
       aria-label={title}

@@ -1,4 +1,5 @@
-import { AppButton } from '@/shared/components/AppButton'
+import { AppButton } from '@/shared/components'
+import { insetBannerClass } from '@/shared/styles/surfaceClasses'
 import { countActiveStoryLibraryFilters } from '../../lib/storyLibraryFilters'
 
 interface StoryFilterSummaryProps {
@@ -20,7 +21,7 @@ export function StoryFilterSummary({
     filteredCount === 1 ? '1 story matches' : `${filteredCount} stories match`
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+    <div className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between ${insetBannerClass}`}>
       <p className="text-sm text-stone-700">
         {matchLabel} your filters
         <span className="text-stone-500"> · {totalCount} total</span>

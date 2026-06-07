@@ -213,3 +213,37 @@ export async function deleteStory(id: string): Promise<void> {
   deleteStoryImageGenerationRecord(id)
   await removeStoryClassroomAssignments(id)
 }
+
+/** Archive a story — hides it from the default library list. */
+export async function archiveStory(id: string): Promise<StoryProject> {
+  const draft = await getStoryDraft(id)
+  if (!draft) {
+    throw new Error(`Story not found: ${id}`)
+  }
+
+  const now = new Date().toISOString()
+  const updated: StoryProject = {
+    ...draft,
+    archivedAt: now,
+    updatedAt: now,
+  }
+
+  return saveStoryDraft(updated)
+}
+
+/** Restore an archived story to the main library list. */
+export async function unarchiveStory(id: string): Promise<StoryProject> {
+  const draft = await getStoryDraft(id)
+  if (!draft) {
+    throw new Error(`Story not found: ${id}`)
+  }
+
+  const now = new Date().toISOString()
+  const updated: StoryProject = {
+    ...draft,
+    archivedAt: null,
+    updatedAt: now,
+  }
+
+  return saveStoryDraft(updated)
+}

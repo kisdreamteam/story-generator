@@ -1,4 +1,4 @@
-export { fetchStoryWithGeneratedContent, persistStoryEdits, persistStoryEditsAsCopy, persistValidatedStoryEdits, safeSaveStory, markStoryCompleted, duplicateStory, deleteStory } from './storyStorageApi'
+export { fetchStoryWithGeneratedContent, persistStoryEdits, persistStoryEditsAsCopy, persistValidatedStoryEdits, safeSaveStory, markStoryCompleted, duplicateStory, archiveStory, unarchiveStory, deleteStory } from './storyStorageApi'
 export { StorySaveValidationFailure, isStorySaveValidationFailure } from '../utils/storyValidation'
 export { StorySaveConflictError, isStorySaveConflictError } from '../utils/storySaveConflict'
 export type { SafeSaveStoryResult } from '../utils/storyValidation'

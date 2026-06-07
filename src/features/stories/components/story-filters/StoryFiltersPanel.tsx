@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { AppButton } from '@/shared/components/AppButton'
+import { AppButton } from '@/shared/components'
+import { insetPanelShellClass } from '@/shared/styles/surfaceClasses'
 import type { StoryLibraryFilters, StoryLibrarySort } from '../../lib/storyLibraryFilters'
 import { StoryLibraryAdvancedFilters, StoryLibrarySearchSortRow } from './StoryFilterFields'
 import { StoryFilterSummary, countActiveStoryLibraryFilters, storyFilterCountLabel } from './StoryFilterSummary'
@@ -31,12 +32,12 @@ export function StoryFiltersPanel({
   return (
     <section
       aria-label="Search and filter stories"
-      className="rounded-xl border border-stone-200 bg-stone-50/80 p-3 sm:p-4"
+      className={`${insetPanelShellClass} p-3 sm:p-4`}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-0.5">
           <h3 className="text-sm font-semibold text-stone-900">Search &amp; filter</h3>
-          <p className="hidden text-xs leading-relaxed text-stone-500 sm:block">
+          <p className="text-xs leading-relaxed text-stone-500">
             Find stories locally — search, filter by status or date, and change sort order.
           </p>
         </div>
